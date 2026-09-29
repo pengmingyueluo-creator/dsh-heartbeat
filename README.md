@@ -83,12 +83,12 @@ bash <状态目录>/phone-done
 
 ```bash
 # 只装插件本体：
-dsh plugin --profile web add github:<用户名>/dsh-heartbeat
+dsh plugin --profile web add github:pengmingyueluo-creator/dsh-heartbeat
 # 或发布到 npm 之后：
 dsh plugin --profile web add dsh-heartbeat
 
 # 想连手机哨兵 / hb / 接管 / 暂停脚本一起装（推荐）：
-git clone https://github.com/<用户名>/dsh-heartbeat && cd dsh-heartbeat && bash install.sh
+git clone https://github.com/pengmingyueluo-creator/dsh-heartbeat && cd dsh-heartbeat && bash install.sh
 ```
 
 > ⚠️ **只装插件时，配套脚本没有部署**：`dsh plugin add` 只装插件本体（`extras/` 里的脚本会躺在
@@ -107,11 +107,11 @@ git clone https://github.com/<用户名>/dsh-heartbeat && cd dsh-heartbeat && ba
 
 | 展开面板（余额 / 上下文进度条 / 今日峰值 / 平均每会话 / 可视化条） | 设置面板（16 项，全部可调） |
 |---|---|
-| ![面板](./screenshot-1-panel.jpg) | ![设置](./screenshot-2-settings.jpg) |
+| ![面板](https://raw.githubusercontent.com/pengmingyueluo-creator/dsh-heartbeat/main/screenshot-1-panel.jpg) | ![设置](https://raw.githubusercontent.com/pengmingyueluo-creator/dsh-heartbeat/main/screenshot-2-settings.jpg) |
 
 | 收起态（胶囊 + 余额 / 今日已用 / 工作状态三行） | 操控手机时的红色横幅 + ⛔ 接管键 |
 |---|---|
-| ![收起态](./screenshot-3-rows.jpg) | ![接管](./screenshot-4-phone-banner.png) |
+| ![收起态](https://raw.githubusercontent.com/pengmingyueluo-creator/dsh-heartbeat/main/screenshot-3-rows.jpg) | ![接管](https://raw.githubusercontent.com/pengmingyueluo-creator/dsh-heartbeat/main/screenshot-4-phone-banner.png) |
 
 > 截图来自真机（京 · 谷价时段）。挂件浮在对话上方，所以面板背后能看到淡淡的内容。
 

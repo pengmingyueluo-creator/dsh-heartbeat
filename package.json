@@ -2,6 +2,14 @@
   "name": "dsh-heartbeat",
   "version": "1.2.0",
   "description": "DSH 心跳板：余额/峰谷价/上下文进度/今日用量可视化/暂停工作/接管手机，双形态（串流页 + 页面挂件）",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pengmingyueluo-creator/dsh-heartbeat.git"
+  },
+  "homepage": "https://github.com/pengmingyueluo-creator/dsh-heartbeat",
+  "bugs": {
+    "url": "https://github.com/pengmingyueluo-creator/dsh-heartbeat/issues"
+  },
   "type": "module",
   "main": "lib/index.js",
   "license": "MIT",

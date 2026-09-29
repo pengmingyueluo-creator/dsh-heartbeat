@@ -24,7 +24,7 @@ cd dist/github-repo
 git init -b main
 git add -A
 git commit -m "dsh-heartbeat 1.2.0: DSH 心跳板插件"
-git remote add origin git@github.com:<你的用户名>/dsh-heartbeat.git
+git remote add origin git@github.com:pengmingyueluo-creator/dsh-heartbeat.git
 git push -u origin main
 ```
 
@@ -35,10 +35,10 @@ git push -u origin main
 
 ```bash
 # 只装插件本体：
-dsh plugin --profile web add github:<你的用户名>/dsh-heartbeat
+dsh plugin --profile web add github:pengmingyueluo-creator/dsh-heartbeat
 
 # 想连手机哨兵、hb、接管/暂停脚本一起装（推荐）：
-git clone https://github.com/<你的用户名>/dsh-heartbeat && cd dsh-heartbeat && bash install.sh
+git clone https://github.com/pengmingyueluo-creator/dsh-heartbeat && cd dsh-heartbeat && bash install.sh
 ```
 
 装完 **重启一次 DSH App**（宿主半侧在进程启动时加载）。
