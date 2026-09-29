@@ -1,0 +1,5 @@
+# dsh-heartbeat —— bundle 挂载声明
+# 注意：id 必须与 lib/index.js 里 export default 的 name 完全一致（都是 heartbeat）
+- insert:
+    - id: heartbeat
+      name: dsh-heartbeat

@@ -1,0 +1,17 @@
+#!/bin/bash
+# ─────────────────────────────────────────────────────────────
+# phone-done —— 告诉心跳板「手机操控已经结束」，让「正在操控手机」横幅**立刻**消失
+#   bash phone-done
+# 用法：每次操控手机的一串动作做完（并把屏幕还原之后）调一次。
+# 不改屏幕、不受哨兵闸门限制（它只是删掉那条操控记录）。
+# 状态目录规则同 hb（与插件 core.cjs 一致）。
+# ─────────────────────────────────────────────────────────────
+DIR="${DSH_HEARTBEAT_DIR:-}"
+if [ -z "$DIR" ]; then
+  SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+  if [ -f "$SELF_DIR/.dsh-heartbeat.json" ] || [ -f "$SELF_DIR/.dsh-phone-last.json" ]; then DIR="$SELF_DIR"
+  elif [ -f "/sdcard/123云盘/ds工作区/.dsh-heartbeat.json" ]; then DIR="/sdcard/123云盘/ds工作区"
+  else DIR="${DSH_HOME:-$HOME/.dsh}/heartbeat"; fi
+fi
+rm -f "$DIR/.dsh-phone-last.json" "$DIR/.dsh-heartbeat-phone.json" 2>/dev/null
+echo "✅ 已撤掉「正在操控手机」横幅"

@@ -1,0 +1,38 @@
+{
+  "name": "dsh-heartbeat",
+  "version": "1.2.0",
+  "description": "DSH 心跳板：余额/峰谷价/上下文进度/今日用量可视化/暂停工作/接管手机，双形态（串流页 + 页面挂件）",
+  "type": "module",
+  "main": "lib/index.js",
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "files": [
+    "lib/",
+    "extras/",
+    "cordis.patch.yml",
+    "README.md",
+    "AI-CUSTOMIZE.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "heartbeat",
+    "balance",
+    "deepseek",
+    "status-bar",
+    "android",
+    "phone-control"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "check": "node --check lib/core.cjs && node --check lib/index.js && node --check lib/widget.js"
+  }
+}

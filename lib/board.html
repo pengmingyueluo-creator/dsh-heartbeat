@@ -1,0 +1,249 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<!--PRELUDE-->
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DSH 心跳</title><style>
+*{box-sizing:border-box}body{margin:0;background:#0b0b0c;color:#e8e8ea;
+font:12px/1.35 ui-monospace,Menlo,monospace;padding:8px}
+#dot{width:14px;height:14px;border-radius:50%;background:#3ddc84;display:inline-block;
+vertical-align:-2px;margin-right:6px;animation:p 1.4s ease-in-out infinite}
+@keyframes p{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.82)}}
+h1{font-size:13px;margin:0 0 6px;font-weight:600;letter-spacing:.5px}
+.row{display:flex;justify-content:space-between;gap:6px;padding:2px 0;border-bottom:1px solid #1a1a1d}
+.k{color:#8b8b93}.v{text-align:right;font-weight:600}
+#step{background:#141417;border-radius:5px;padding:5px 7px;margin:6px 0 3px;word-break:break-all}
+#step.idle{opacity:.6}
+#age.bad{color:#ff5d5d}#age.warn{color:#ffc53d}#age.ok{color:#3ddc84}
+#bal{font-size:15px}#bal.low{color:#ff3b30}#bal.mid{color:#ff8c1a}#bal.ok{color:#3ddc84}#bal.stale{opacity:.45}
+.peak{color:#ff3b30}.off{color:#3ddc84}#price{font-size:12px;color:#b9b9c0}
+#state.work{color:#3ddc84}#state.idle{color:#8b8b93}#age.idle{color:#8b8b93}
+#clock{font-size:15px;letter-spacing:.5px}
+#bar,#ctxbar{height:5px;background:#1c1c1f;border-radius:3px;overflow:hidden;margin:2px 0 4px}
+#barfill,#ctxfill{height:100%;width:0;background:#3ddc84;transition:width .6s linear}
+#barfill.p{background:#ff3b30}#ctxfill{background:#4c8dff}
+#ctxfill.hot{background:#ff5d5d}#ctxfill.warm{background:#ffc53d}
+#warn{display:none;background:#ff3b30;color:#fff;font-weight:700;padding:8px 6px;border-radius:6px;margin:0 0 8px;text-align:center;line-height:1.35;animation:blink 1s ease-in-out infinite}
+@keyframes blink{50%{opacity:.5}}
+#btnStop{display:block;width:100%;background:#2b2b31;color:#ff9f0a;border:1px solid #ff9f0a;border-radius:6px;padding:7px 4px;margin:0 0 7px;font:12px ui-monospace,Menlo,monospace;font-weight:700}
+#btnStop:active{background:#ff9f0a;color:#111}
+#sent{color:#ffc53d;font-size:11px;margin:0 0 5px}
+#modes{display:flex;gap:4px;margin:0 0 8px}
+#modes button{flex:1;background:#1c1c1f;color:#b9b9c0;border:1px solid #2b2b31;border-radius:5px;padding:5px 2px;font:11px ui-monospace,Menlo,monospace}
+#modes button.on{background:#2b2b31;color:#4c8dff;border-color:#4c8dff;font-weight:700}
+</style></head><body>
+<div id="syncing" style="display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:200;background:rgba(11,11,12,.97);border:1px solid #2b2b31;border-radius:10px;padding:14px 16px;color:#e8e8ea;text-align:center">
+  <div style="font-weight:700;margin-bottom:6px">🔄 正在同步…</div>
+  <div id="syncitems" style="color:#8b8b93;font-size:12px"></div>
+  <div style="color:#6b6b73;font-size:10px;margin-top:6px">同步完成后自动显示</div>
+</div>
+<div id="daily" style="display:none;position:fixed;left:0;right:0;bottom:42px;background:#ff8c1a;color:#111;font-weight:700;padding:7px 6px;text-align:center;z-index:98">今日已用超过阈值</div>
+<div id="crit" style="display:none;position:fixed;left:0;right:0;bottom:0;background:#ff3b30;color:#fff;font-weight:700;padding:8px 6px;text-align:center;z-index:99;animation:blink .9s ease-in-out infinite;white-space:pre-line;line-height:1.4">余额严重不足</div>
+<div id="warn">⚠️ 正在操控手机 · 请勿触摸<br><span id="warntext" style="font-weight:400;font-size:12px"></span></div>
+<h1><span id="dot"></span>DSH 心跳</h1>
+<div id="modes">
+  <button data-m="widget">页面挂件</button>
+  <button data-m="stream">串流页</button>
+  <button data-m="both">两者都开</button>
+</div>
+<div style="color:#6b6b73;font-size:11px;margin:0 0 7px;line-height:1.35">💡 想在我操控<b style="color:#8b8b93">别的 App</b> 时也能按接管键 / 看到横幅？<br>把这一页放进 <b style="color:#8b8b93">Chrome 小窗</b>（它浮在别的应用上面）。</div>
+<button id="btnStop">⛔ 我要接管 · 停止操控</button>
+<div style="border:1px solid #1a1a1d;border-radius:6px;padding:7px;margin:0 0 8px">
+  <div style="color:#8b8b93;margin-bottom:5px">⚙ 设置</div>
+  <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><span style="color:#8b8b93;flex:1">余额橙 &lt;</span>
+    <input id="setOrg" type="number" style="width:64px;background:#141417;color:#e8e8ea;border:1px solid #2b2b31;border-radius:4px;padding:3px 5px"></div>
+  <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><span style="color:#8b8b93;flex:1">余额红 &lt;</span>
+    <input id="setRed" type="number" style="width:64px;background:#141417;color:#e8e8ea;border:1px solid #2b2b31;border-radius:4px;padding:3px 5px"></div>
+  <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><span style="color:#8b8b93;flex:1">串流端口</span>
+    <input id="setPort" style="width:64px;background:#141417;color:#e8e8ea;border:1px solid #2b2b31;border-radius:4px;padding:3px 5px" placeholder="0/auto"></div>
+  <div style="color:#6b6b73;font-size:11px;margin-bottom:5px" id="portHint">0=跟随 DSH 端口；auto=自动找空闲端口</div>
+  <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><span style="color:#8b8b93;flex:1">空闲判定(秒)</span><input id="setIdle" inputmode="decimal" style="width:64px;background:#141417;color:#e8e8ea;border:1px solid #2b2b31;border-radius:4px;padding:3px 5px" placeholder="15"></div>
+<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><span style="color:#8b8b93;flex:1">手机横幅(秒)</span><input id="setPhoneTtl" inputmode="decimal" style="width:64px;background:#141417;color:#e8e8ea;border:1px solid #2b2b31;border-radius:4px;padding:3px 5px" placeholder="8"></div>
+<span style="color:#8b8b93;flex:1">刷新间隔(秒)</span><input id="setRefresh" inputmode="decimal" style="width:64px;background:#141417;color:#e8e8ea;border:1px solid #2b2b31;border-radius:4px;padding:3px 5px" placeholder="1"></div>
+  <span style="color:#8b8b93;flex:1">余额提醒常驻</span><input id="setBal" type="checkbox" style="width:16px;height:16px"></div>
+  <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><span style="color:#8b8b93;flex:1">日耗提醒 &gt;</span><input id="setDaily" inputmode="decimal" style="width:64px;background:#141417;color:#e8e8ea;border:1px solid #2b2b31;border-radius:4px;padding:3px 5px"></div>
+  <button id="setSave" style="width:100%;background:#1c1c1f;color:#b9b9c0;border:1px solid #2b2b31;border-radius:5px;padding:5px">保存设置</button>
+  <div id="setMsg" style="color:#3ddc84;font-size:11px;margin-top:4px"></div>
+</div>
+<div id="sent" style="display:none">⚠️ 哨兵未安装：横幅靠计数器兜底，且中断闸门失效</div>
+<div class="row"><span class="k">存活</span><span class="v" id="alive">–</span></div>
+<div class="row"><span class="k">余额</span><span class="v" id="bal">–</span></div>
+<div class="row"><span class="k">当前时段</span><span class="v" id="band">–</span></div>
+<div id="bar"><div id="barfill"></div></div>
+<div class="row"><span class="k">距切换</span><span class="v" id="next">–</span></div>
+<div class="row"><span class="k">当前单价</span><span class="v" id="price">–</span></div>
+<div id="step"><span class="k">正在行动：</span><span id="steptext">–</span><br>
+<span class="k">上次行动：</span><span id="age">–</span></div>
+<div class="row"><span class="k">工作</span><span class="v"><span id="worktext">–</span> <button id="pauseBtn" style="background:#2b2b31;color:#ff9f0a;border:1px solid #ff9f0a;border-radius:10px;padding:2px 8px;font:11px ui-monospace,Menlo,monospace;font-weight:700">⏸ 暂停工作</button></span></div>
+<div class="row"><span class="k">状态</span><span class="v"><span id="state">–</span> · CPU <span id="cpu">–</span></span></div>
+<div class="row"><span class="k">上下文压力</span><span class="v" id="ctx">–</span></div>
+<div id="ctxbar"><div id="ctxfill"></div></div>
+<div class="row"><span class="k">今日原有</span><span class="v" id="ds">–</span></div>
+<div class="row"><span class="k">今日已用</span><span class="v" id="today">–</span></div>
+<div class="row"><span class="k">剩余</span><span class="v" id="left">–</span></div>
+<div id="vizbar" style="display:flex;height:9px;border-radius:5px;overflow:hidden;margin:4px 0;background:#1c1c1f">
+  <div id="seg1" style="width:0;background:#ff8c1a"></div><div id="seg0" style="width:0;background:#8b8b93"></div><div id="seg2" style="width:0;background:#4c8dff"></div>
+</div>
+<div class="row"><span class="k" style="color:#6b6b73">今日已充值（估算）</span><span class="v" id="topup" style="color:#4c8dff">–</span></div>
+<div class="row"><span class="k" style="color:#6b6b73">估值</span><span class="v" id="est" style="color:#b9b9c0">–</span></div>
+<div class="row"><span class="k">最近一轮</span><span class="v" id="turn">–</span></div>
+<div class="row"><span class="k">本会话</span><span class="v" id="sess">–</span></div>
+<div class="row"><span class="k">内存 / 磁盘</span><span class="v"><span id="rss">–</span> · <span id="disk">–</span></span></div>
+<div class="row"><span class="k">累计请求/tokens</span><span class="v" id="tok">–</span></div>
+<div class="row"><span class="k">北京时间</span><span class="v" id="clock">–</span></div>
+<script>
+var V=30, API=window.__HB_API||'', TOKEN=window.__HB_TOKEN||'';
+document.getElementById("pauseBtn").onclick=async function(){
+  var b=this, want=!(window.__hbPaused); b.disabled=true;
+  try{var r=await fetch(API+(want?"/pause":"/pause/clear")+(TOKEN?("?t="+TOKEN):""),{method:"POST"});
+    if(!r.ok)throw 0; b.disabled=false; tick();
+  }catch(e){b.disabled=false;b.textContent="需重启宿主后生效";setTimeout(tick,2500);}
+};
+function u(p){return API+p+(TOKEN?('?t='+TOKEN):'')}
+function fmt(s){if(s==null)return"–";var m=Math.floor(s/60);return(m?m+"分":"")+(s%60)+"秒"}
+function hms(s){if(s==null)return"–";var h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h?h+"时"+m+"分":m+"分"+(s%60)+"秒"}
+document.getElementById("btnStop").onclick=async function(){
+  this.disabled=true; this.textContent="已发送…";
+  try{await fetch(API+"/interrupt"+(TOKEN?("?t="+TOKEN):""),{method:"POST"});}catch(e){}
+  setTimeout(()=>{this.disabled=false;this.textContent="⛔ 我要接管 · 停止操控";},1800);
+};
+async function setMode(m){
+  try{await fetch(API+"/mode?mode="+m+(TOKEN?("&t="+TOKEN):""),{method:"POST"});}catch(e){}
+  tick();
+}
+document.querySelectorAll("#modes button").forEach(function(b){b.onclick=function(){setMode(b.getAttribute("data-m"))}});
+document.getElementById("setSave").onclick=async function(){
+  var q="orangeBelow="+encodeURIComponent(document.getElementById("setOrg").value)+
+        "&redBelow="+encodeURIComponent(document.getElementById("setRed").value)+
+        "&streamPort="+encodeURIComponent(document.getElementById("setPort").value||"0")+
+        "&balanceAlert="+(document.getElementById("setBal").checked?"1":"0")+
+        "&dailyCostAlert="+encodeURIComponent(document.getElementById("setDaily").value||"10")+
+        "&idleGraceSec="+encodeURIComponent(document.getElementById("setIdle").value||"15")+
+        "&phoneTtlSec="+encodeURIComponent(document.getElementById("setPhoneTtl").value||"8");
+  try{var r=await fetch(API+"/settings?"+q+(TOKEN?("&t="+TOKEN):""),{method:"POST"});var j=await r.json();
+    var rs2=Number(document.getElementById("setRefresh").value); if(!isFinite(rs2)||rs2<=0) rs2=1; rs2=Math.min(10,Math.max(0.5,rs2));
+    document.getElementById("setRefresh").value=rs2;
+    try{localStorage.setItem("dshhb-refresh",String(Math.round(rs2*1000)))}catch(e){}
+    armB();
+    document.getElementById("setMsg").textContent="已保存（独立端口 "+(j.streamPortActual||0)+"）";
+    setTimeout(function(){document.getElementById("setMsg").textContent=""},3000);}catch(e){document.getElementById("setMsg").textContent="保存失败";}
+  tick();
+};
+var __tc={at:0,data:null};
+async function todayFB(){ if(Date.now()-__tc.at<30000) return __tc.data;
+ try{var r=await fetch("/api/token-usage-stats",{cache:"no-store"});var j2=await r.json();
+  var BJ=28800000,key=new Date(Date.now()+BJ).toISOString().slice(0,10),req=0,tok=0,cost=0,n=0;
+  (j2.series||[]).forEach(function(bb){if(!bb||!bb.totals)return;if(new Date(bb.startTime+BJ).toISOString().slice(0,10)!==key)return;req+=Number(bb.totals.requestCount)||0;tok+=Number(bb.totals.totalTokens)||0;cost+=Number(bb.totals.cost)||0;n++});
+  __tc={at:Date.now(),data:n>0?{requests:req,tokens:tok,cost:cost}:(j2.totals?{requests:j2.totals.requestCount,tokens:j2.totals.totalTokens,cost:j2.totals.cost}:null)};
+ }catch(e){__tc={at:Date.now(),data:__tc.data}} return __tc.data;
+}
+var __sync={done:false,at:Date.now(),err:""};
+try{__sync.done=(Date.now()-Number(sessionStorage.getItem("dshhb-synced")||0))<60000}catch(e){}
+function syncUI(j){
+  var it=[["host","心跳服务",!!j],["balance","余额",!!(j&&j.balance)],["peak","峰谷时段",!!(j&&j.peak)],["tokens","今日用量",!!(j&&j.tokens)],["ctx","会话上下文",!!(j&&j.ctx)]];
+  var el=document.getElementById("syncitems");
+  if(el){var s=it.map(function(x){return (x[2]?"✅ ":"⏳ ")+x[1]}); if(__sync.err)s.push("⚠️ "+__sync.err); el.innerHTML=s.join("<br>")}
+  return (it[0][2]&&it[1][2]&&it[2][2])||(Date.now()-__sync.at>25000);
+}
+async function tick(){
+ try{
+  var r=await fetch(u("/state"),{cache:"no-store"});
+  if(r.status===401){ if(TOKEN){location.reload();} else {document.getElementById("steptext").textContent="未通过鉴权（浏览器里请先登录 DSH）";} return; }
+  var j=await r.json(); if(!j.today){var tf2=await todayFB(); if(tf2) j.today=tf2;}
+  if(j.v!==undefined&&j.v>V){location.replace(location.pathname+"?v="+V);return;}
+  document.querySelectorAll("#modes button").forEach(function(b){b.className=(b.getAttribute("data-m")===j.mode)?"on":""});
+  document.getElementById("sent").style.display=(j.sentinel&&j.sentinel.installed)?"none":"block";
+  document.getElementById("alive").textContent=fmt(j.aliveSec);
+  var b=document.getElementById("bal");
+  if(j.balance){var age=j.balance.ageSec||0;
+    b.textContent="¥"+j.balance.total.toFixed(2)+(age>60?(" · "+fmt(age)+"前"):"");
+    b.className=age>300?"v stale":("v "+(j.balance.total<5?"low":j.balance.total<10?"mid":"ok"));}
+  else{b.textContent="?";b.className="v";}
+  var band=document.getElementById("band"), fill=document.getElementById("barfill");
+  if(j.peak){band.textContent=(j.peak.peak?"峰价":"谷价")+(j.peak.weekendOffpeak&&j.peak.weekend?"（周末）":"");
+    band.className="v "+(j.peak.peak?"peak":"off");fill.style.width=(j.peak.bandPct||0)+"%";fill.className=j.peak.peak?"p":"";}
+  document.getElementById("next").textContent=j.peak&&j.peak.nextInSec!=null?hms(j.peak.nextInSec)+"后转"+(j.peak.nextPeak?"峰":"谷"):"–";
+  var p=j.peak&&j.peak.price;
+  document.getElementById("price").textContent=p?("输入 "+p.uncachedInputPerMillion+" · 缓存 "+p.cacheReadPerMillion+" · 输出 "+p.outputPerMillion+" 元/M"):"–";
+  var sx=document.getElementById("steptext");
+  if(j.running){sx.textContent="▶ "+j.running;sx.style.color="#3ddc84";}
+  else{sx.textContent=j.working?(j.step||"（思考中）"):"（空闲 · 等你说话）";sx.style.color="#8b8b93";}
+  document.getElementById("step").className=j.working?"":"idle";
+  var a=document.getElementById("age"), st=document.getElementById("state");
+  if(j.working){st.textContent=(j.busyLeftSec>0&&j.progressAgoSec>30)?("工作中（还要忙 "+j.busyLeftSec+"s）"):"工作中";st.className="work";
+    a.textContent=j.progressAgoSec==null?"–":fmt(j.progressAgoSec)+"前";
+    a.className=j.progressAgoSec==null?"":(j.progressAgoSec>90?"bad":j.progressAgoSec>30?"warn":"ok");}
+  else{st.textContent="空闲 · 已"+fmt(j.idleSec);st.className="idle";a.textContent="倒计时已暂停";a.className="idle";}
+  var paused=!!(j.pause&&j.pause.on), wb2=document.getElementById("worktext"), pb2=document.getElementById("pauseBtn");
+  window.__hbPaused=paused;
+  if(paused){wb2.textContent="已暂停";wb2.style.color="#ff3b30";pb2.style.display="inline-block";pb2.textContent="▶ 继续工作";pb2.style.color="#3ddc84";pb2.style.borderColor="#3ddc84";}
+  else if(j.working&&((j.progressAgoSec==null)||(j.progressAgoSec<=(j.settings&&j.settings.idleGraceSec||15))||j.busyLeftSec>0||j.running)){wb2.textContent="工作中";wb2.style.color="#3ddc84";pb2.style.display="inline-block";pb2.textContent="⏸ 暂停工作";pb2.style.color="#ff9f0a";pb2.style.borderColor="#ff9f0a";}
+  else{wb2.textContent="空闲";wb2.style.color="#8b8b93";pb2.style.display="none";}
+  document.getElementById("cpu").textContent=j.cpuPct==null?"?":j.cpuPct+"%";
+  var cx=document.getElementById("ctx"), cf=document.getElementById("ctxfill");
+  if(j.ctx&&j.ctx.pressPct!=null){cx.textContent=j.ctx.pressPct+"% · "+(j.ctx.surface/1000).toFixed(0)+"k/"+(j.ctx.window/1e6)+"M";
+    cx.className="v "+(j.ctx.pressPct>80?"bad":j.ctx.pressPct>60?"warn":"ok");
+    cf.style.width=Math.min(100,j.ctx.pressPct)+"%";cf.className=j.ctx.pressPct>80?"hot":j.ctx.pressPct>60?"warm":"";}
+  else{cx.textContent="（读不到投影缓存）";}
+  document.getElementById("turn").textContent=j.turn?("第 "+j.turn.n+" 轮 ¥"+j.turn.cost.toFixed(4)+"（本步 ¥"+j.turn.lastStepCost.toFixed(4)+"）"):"–";
+  document.getElementById("sess").textContent=j.tokens&&j.tokens.sessionCost!=null
+    ?("¥"+j.tokens.sessionCost.toFixed(3)+" · "+j.tokens.sessionRequests+" 请求 · 累计 ¥"+j.tokens.cost.toFixed(3)):"（未匹配到本会话）";
+  document.getElementById("rss").textContent=j.rssMB==null?"?":j.rssMB+" MB";
+  document.getElementById("disk").textContent=j.disk?j.disk.freeGB+" GB ("+j.disk.usedPct+"%)":"?";
+  document.getElementById("tok").textContent=j.tokens?(j.tokens.requests+" / "+(j.tokens.total/1e6).toFixed(1)+"M"):"–";
+  document.getElementById("clock").textContent=(j.bjTime||"–")+"   "+(j.bjDate||"");
+  if(j.settings){
+    if(document.activeElement!==document.getElementById("setOrg"))document.getElementById("setOrg").value=j.settings.orangeBelow;
+    if(document.activeElement!==document.getElementById("setRed"))document.getElementById("setRed").value=j.settings.redBelow;
+    if(document.activeElement!==document.getElementById("setPort"))document.getElementById("setPort").value=j.settings.streamPort;
+    var si=document.getElementById("setIdle"); if(si&&document.activeElement!==si) si.value=(j.settings&&j.settings.idleGraceSec!=null?j.settings.idleGraceSec:15);
+    var spt=document.getElementById("setPhoneTtl"); if(spt&&document.activeElement!==spt) spt.value=(j.settings&&j.settings.phoneTtlSec!=null?j.settings.phoneTtlSec:8);
+    var sr=document.getElementById("setRefresh"); if(sr&&document.activeElement!==sr) sr.value=(getRefreshMsB()/1000);
+    var sd=document.getElementById("setDaily"); if(sd&&document.activeElement!==sd) sd.value=(j.settings.dailyCostAlert!=null?j.settings.dailyCostAlert:10);
+    var cb2=document.getElementById("setBal"); if(cb2&&document.activeElement!==cb2) cb2.checked=(j.settings.balanceAlert!==false);
+    document.getElementById("portHint").textContent="0=跟随 DSH 端口；auto=自动找空闲端口"+(j.streamPortActual?("（当前独立监听 "+j.streamPortActual+"）"):"");
+  }
+  var L=j.guard?j.guard.level:"ok";
+  var critEl=document.getElementById("crit"), dailyEl=document.getElementById("daily");
+  var dAlert=(j.settings&&j.settings.dailyCostAlert!=null)?Number(j.settings.dailyCostAlert):10;
+  var tCost=usedD?usedD.cost:null;
+  var act=(j.todayActual||j.today||null), inf=(j.turn&&j.turn.lastStepCost)||0;
+  var est=act?{cost:act.cost+inf,tokens:act.tokens,requests:act.requests}:null;
+  var tm=(j.settings&&j.settings.todayMode==="estimate")?"estimate":"actual";
+  var usedD=tm==="estimate"?(est||act):(act||est);
+  var dsRecB=null; try{dsRecB=JSON.parse(localStorage.getItem("dshhb-daystart"))}catch(e){}
+  var BJd=28800000,todayD=new Date(Date.now()+BJd).toISOString().slice(0,10);
+  if(!dsRecB||dsRecB.date!==todayD){dsRecB={date:todayD,balance:j.balance?j.balance.total:null};try{localStorage.setItem("dshhb-daystart",JSON.stringify(dsRecB))}catch(e){}}
+  document.getElementById("ds").textContent=dsRecB.balance!=null?("¥"+dsRecB.balance.toFixed(2)):"–";
+  document.getElementById("left").textContent=j.balance?("¥"+j.balance.total.toFixed(2)):"–";
+  document.getElementById("est").textContent=est?("¥"+est.cost.toFixed(2)):"–";
+  var topN=(j.todayTopup!=null?j.todayTopup:0), dsB2=(j.dayStart&&j.dayStart.balance!=null)?j.dayStart.balance:dsRecB.balance, usedC2=usedD?usedD.cost:0;
+  document.getElementById("topup").textContent="¥"+topN.toFixed(2);
+  var vzOn=!(j.settings&&j.settings.viz===false), vb=document.getElementById("vizbar");
+  vb.style.display=vzOn?"flex":"none";
+  var den=Math.max((dsB2||0)+topN,usedC2)||1;
+  document.getElementById("seg0").style.width=(Math.max(0,(dsB2||0)-usedC2)/den*100)+"%";
+  document.getElementById("seg1").style.width=(Math.min(usedC2,den)/den*100)+"%";
+  document.getElementById("seg2").style.width=(topN/den*100)+"%";
+  document.getElementById("today").textContent=usedD?("¥"+usedD.cost.toFixed(2)+" · "+(usedD.tokens/1e6).toFixed(1)+"M"):"–";
+  if(tCost!=null&&dAlert>0&&tCost>dAlert){dailyEl.style.display="block";dailyEl.textContent="💸 今日已用 ¥"+tCost.toFixed(2)+"（>"+dAlert+"）";}else{dailyEl.style.display="none";}
+  var cb3=(j.settings&&j.settings.criticalBelow!=null)?Number(j.settings.criticalBelow):1;
+  var isCrit2=!!(j.guard&&j.guard.critical)||!!(j.balance&&j.balance.total<cb3);
+  if(isCrit2){critEl.style.display="block";critEl.textContent="🚨 余额严重不足 ¥"+j.balance.total.toFixed(2)+"（<"+cb3+"）\n余额完全不够用 → API 调用会失败、任务中断\n进行中的操作可能半途而废；手机自动化可能停在中途";}else{critEl.style.display="none";}
+  var wb=document.getElementById("warn"), wt=document.getElementById("warntext");
+  var ptl=(j.settings&&j.settings.phoneTtlSec!=null?j.settings.phoneTtlSec:8);
+  if(j.phone&&j.phone.on&&j.phone.ageSec!=null&&j.phone.ageSec>ptl) j.phone={on:false};
+  if(j.interrupt&&j.interrupt.on){wb.style.display="block";wb.style.background="#ff9f0a";wb.style.color="#111";
+    wt.textContent="中断已请求 · 等待 agent 停下（"+(j.interrupt.ageSec||0)+"s）";}
+  else if(L==="red"||L==="critical"){wb.style.display="block";wb.style.background="#ff3b30";wb.style.color="#fff";
+    wt.textContent="⛔ 余额仅 ¥"+(j.balance?j.balance.total.toFixed(2):"?")+"（红区 <"+j.guard.redBelow+"）—— 调用 API 前先提醒用户";}
+  else if(j.phone&&j.phone.on){wb.style.display="block";wb.style.background="#ff3b30";wb.style.color="#fff";
+    wt.textContent=(j.phone.text||"")+"（已 "+(j.phone.ageSec||0)+" 秒）";}
+  else if(L==="orange"){wb.style.display="block";wb.style.background="#ff8c1a";wb.style.color="#111";
+    wt.textContent="⚠️ 余额 ¥"+(j.balance?j.balance.total.toFixed(2):"?")+"（橙区 <"+j.guard.orangeBelow+"）";}
+  else{wb.style.display="none";}
+ }catch(e){ if(!__sync.done){__sync.err="心跳服务未就绪，重试中…";syncUI(null);} document.getElementById("steptext").textContent="与心跳服务断开";}
+}
+function getRefreshMsB(){var v=null;try{v=Number(localStorage.getItem("dshhb-refresh"))}catch(e){}if(!isFinite(v)||v<500||v>10000)v=1000;return v}
+function armB(){try{clearInterval(window.__hbT)}catch(e){}window.__hbT=setInterval(tick,getRefreshMsB())}
+if(!__sync.done)document.getElementById("syncing").style.display="block";
+tick();armB();
+</script></body></html>

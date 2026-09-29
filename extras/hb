@@ -1,0 +1,112 @@
+#!/bin/bash
+# ─────────────────────────────────────────────────────────────
+# hb —— 心跳板进度 + 余额哨兵（给 AI agent 用，每一步之前调一次）
+#
+#   bash hb "正在做什么"            默认按"很快就好"处理（30 秒没动静算空闲）
+#   bash hb "跑测试" 180            声明大约还要忙 180 秒（服务端会截断到 15 分钟）
+#   bash hb done                    本回合结束：挂件立刻回到"空闲"（不用等宽限期）
+#
+# 两个作用：
+#   ① 把进度写进状态文件 → 心跳看板/挂件显示"正在行动/上次行动"
+#   ② 若余额已进橙/红区（由插件写入的守卫文件判定）→ 在输出里打印警告。
+#      这行警告会出现在 agent 的每一步工具输出里，所以**漏不掉**。
+#
+# 状态目录规则（必须与插件 lib/core.cjs 的 resolveWorkdir 保持一致）：
+#   ① $DSH_HEARTBEAT_DIR  ② 脚本所在目录（若里面已有状态文件）  ③ 老工作区  ④ $DSH_HOME/heartbeat
+# ─────────────────────────────────────────────────────────────
+set -u
+DIR="${DSH_HEARTBEAT_DIR:-}"
+if [ -z "$DIR" ]; then
+  SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+  if [ -f "$SELF_DIR/.dsh-heartbeat.json" ] || [ -f "$SELF_DIR/.dsh-interrupt.json" ]; then DIR="$SELF_DIR"
+  elif [ -f "/sdcard/123云盘/ds工作区/.dsh-heartbeat.json" ]; then DIR="/sdcard/123云盘/ds工作区"
+  else DIR="${DSH_HOME:-$HOME/.dsh}/heartbeat"; fi
+fi
+mkdir -p "$DIR" 2>/dev/null
+
+step="${1:-}"
+
+# ── 子命令：bash hb done ──────────────────────────────────────
+# 本回合结束（我干完了）。挂件**立刻**显示空闲，不用等宽限期。
+# 实现：把进度时间戳往前拨（宽限期+1 秒），并留一个 ended 标记；
+# 下次 hb 会重新写成"正在忙"。
+if [ "$step" = "done" ] || [ "$step" = "end" ]; then
+  node -e '
+    const fs = require("fs");
+    const dir = process.argv[1];
+    const p = dir + "/.dsh-heartbeat.json";
+    let prev = {};
+    try { prev = JSON.parse(fs.readFileSync(p, "utf8")); } catch (e) {}
+    let g = 15;
+    try {
+      const s = JSON.parse(fs.readFileSync((process.env.HOME || "/root") + "/.dsh/heartbeat-settings.json", "utf8"));
+      if (Number(s.idleGraceSec) >= 1) g = Number(s.idleGraceSec);
+    } catch (e) {}
+    fs.writeFileSync(p, JSON.stringify({
+      at: Date.now() - (g + 1) * 1000,
+      step: "（本回合已结束）",
+      busyMs: 0,
+      ended: true,
+      sessionId: prev.sessionId || null
+    }));
+    console.log("✅ 已标记本回合结束 —— 挂件会立刻显示空闲（下次 hb 重新变工作中）");
+  ' "$DIR"
+  exit 0
+fi
+busy="${2:-0}"
+NODE="$(command -v node || echo node)"
+
+# ── 暂停检查：用户在挂件上按了 ⏸ ⇒ 立刻停手等确认（退出码 3）──
+PAUSE="$DIR/.dsh-pause.json"
+if [ -f "$PAUSE" ]; then
+  "$NODE" -e '
+    const fs=require("fs");
+    try{
+      const j=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
+      if(!j.on) process.exit(1);
+      const age=Math.round((Date.now()-(j.at||0))/1000);
+      console.log("⏸⏸ 用户按下了「暂停工作」（"+Math.round(age/60)+" 分钟前）—— 最高优先级，立刻停手。");
+      console.log("     恢复协议：① 先把工作表/待办登记好 ② 请主人按挂件上的「▶ 继续工作」或明确说允许");
+      console.log("     ③ 确认暂停已解除后再继续。永远不要自己清掉暂停。查看： bash \"$DIR/pause.sh\" status");
+      process.exit(0);
+    }catch(e){process.exit(1)}
+  ' "$PAUSE"
+  if [ $? -eq 0 ]; then exit 3; fi
+fi
+
+json() { "$NODE" -e 'process.stdout.write(JSON.stringify(process.argv[1]))' "$1"; }
+
+printf '{"at":%s,"step":%s,"busyMs":%s,"sessionId":%s}\n' \
+  "$(date +%s)000" "$(json "$step")" "$((busy * 1000))" "$(json "${DSH_SESSION_ID:-}")" \
+  > "$DIR/.dsh-heartbeat.json"
+
+# ── 余额哨兵 ──
+GUARD="${DSH_HOME:-$HOME/.dsh}/heartbeat-guard.json"
+if [ -f "$GUARD" ]; then
+  "$NODE" -e '
+    const fs=require("fs");
+    try{
+      const g=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
+      if(!g) process.exit(0);
+      const age=Math.round((Date.now()-(g.at||0))/1000);
+      // 兜底：老宿主写的守卫文件可能还没有 critical 字段 → 自己按设置算（默认 1 元）
+      if(g.critical===undefined){
+        let cb=1;
+        try{const st=JSON.parse(fs.readFileSync(process.env.DSH_HOME?process.env.DSH_HOME+"/heartbeat-settings.json":process.argv[2],"utf8"));if(st&&st.criticalBelow!=null)cb=Number(st.criticalBelow)}catch(e){}
+        g.criticalBelow=cb; g.critical=(Number(g.balance)<cb);
+      }
+      if(g.critical){
+        console.log("🚨🚨 余额严重不足：¥"+Number(g.balance).toFixed(2)+"（严重线 <"+g.criticalBelow+"，"+Math.round(age/60)+" 分钟前读数）");
+        console.log("     → 最高优先级：**每次被调用时，先告诉用户「余额严重不足」以及可能后果**，再问是否继续。");
+        console.log("       可能后果：API 调用会失败 → 对话/任务中断；正在进行的操作半途而废、结果可能丢失；手机自动化可能停在中途。");
+      } else if(g.level!=="ok"){
+        const tag=g.level==="red"?"⛔ 余额红区":"⚠️ 余额橙区";
+        console.log(tag+"：¥"+Number(g.balance).toFixed(2)+"（橙<"+g.orangeBelow+" 红<"+g.redBelow+"，"+Math.round(age/60)+" 分钟前读数）");
+        if(g.level==="red") console.log("   → 规则：调用 API 做任何较大操作之前，先提醒用户余额、等确认再动手");
+      }
+      if(g.dailyCost!=null && g.dailyCostAlert>0 && g.dailyCost > g.dailyCostAlert){
+        console.log("💸 今日已用 ¥"+Number(g.dailyCost).toFixed(2)+"（超过阈值 ¥"+g.dailyCostAlert+"）—— 今天烧得有点快，长任务前可以先说一声");
+      }
+    }catch(e){}
+  ' "$GUARD" "${DSH_HOME:-$HOME/.dsh}/heartbeat-settings.json"
+fi
