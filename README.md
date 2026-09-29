@@ -113,8 +113,6 @@ git clone https://github.com/pengmingyueluo-creator/dsh-heartbeat && cd dsh-hear
 |---|---|
 | ![收起态](https://raw.githubusercontent.com/pengmingyueluo-creator/dsh-heartbeat/main/screenshot-3-rows.jpg) | ![接管](https://raw.githubusercontent.com/pengmingyueluo-creator/dsh-heartbeat/main/screenshot-4-phone-banner.png) |
 
-> 截图来自真机（京 · 谷价时段）。挂件浮在对话上方，所以面板背后能看到淡淡的内容。
-
 ## 安装
 
 ```bash
