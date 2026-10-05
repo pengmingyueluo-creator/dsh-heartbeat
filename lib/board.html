@@ -29,6 +29,24 @@ h1{font-size:13px;margin:0 0 6px;font-weight:600;letter-spacing:.5px}
 #modes{display:flex;gap:4px;margin:0 0 8px}
 #modes button{flex:1;background:#1c1c1f;color:#b9b9c0;border:1px solid #2b2b31;border-radius:5px;padding:5px 2px;font:11px ui-monospace,Menlo,monospace}
 #modes button.on{background:#2b2b31;color:#4c8dff;border-color:#4c8dff;font-weight:700}
+body.light{background:#f5f5f7;color:#1c1c1f}
+body.light .card{background:#fff;border-color:#e2e2e6}
+body.light .row{border-color:#e6e6ea}
+body.light .k,body.light .sub{color:#6b6b73}
+body.light input{background:#fff!important;color:#1c1c1f!important;border-color:#d2d2d8!important}
+.card{background:#141417;border:1px solid #1f1f23;border-radius:6px;padding:7px;margin:0 0 8px}
+.ttl{color:#8b8b93;margin-bottom:4px;font-weight:600}
+.sub{color:#6b6b73;font-size:11px;line-height:1.5;word-break:break-all}
+.bar7{display:flex;gap:3px;align-items:flex-end;height:52px;margin:3px 0}
+.b7{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:2px}
+.b7 i{display:block;width:100%;background:#3a3a42;border-radius:2px 2px 0 0;min-height:2px}
+.b7 span{font-size:9px;color:#6b6b73}
+.logline{padding:1px 0;border-bottom:1px dashed #1f1f23}
+.logline b{color:#ff9f0a}
+.tl{display:flex;gap:5px;padding:1px 0}
+.tl .t{color:#4c8dff;white-space:nowrap}
+.skinb{background:#1c1c1f;color:#b9b9c0;border:1px solid #2b2b31;border-radius:4px;padding:3px 8px;font:11px ui-monospace,Menlo,monospace}
+.skinb.on{color:#4c8dff;border-color:#4c8dff;font-weight:700}
 </style></head><body>
 <div id="syncing" style="display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:200;background:rgba(11,11,12,.97);border:1px solid #2b2b31;border-radius:10px;padding:14px 16px;color:#e8e8ea;text-align:center">
   <div style="font-weight:700;margin-bottom:6px">🔄 正在同步…</div>
@@ -63,6 +81,8 @@ h1{font-size:13px;margin:0 0 6px;font-weight:600;letter-spacing:.5px}
   <button id="setSave" style="width:100%;background:#1c1c1f;color:#b9b9c0;border:1px solid #2b2b31;border-radius:5px;padding:5px">保存设置</button>
   <div id="setMsg" style="color:#3ddc84;font-size:11px;margin-top:4px"></div>
 </div>
+<div style="display:flex;gap:6px;align-items:center;margin:4px 0 0"><span style="color:#8b8b93;flex:1">暂停备注（可选）</span>
+  <input id="pauseNote" style="width:130px;background:#141417;color:#e8e8ea;border:1px solid #2b2b31;border-radius:4px;padding:3px 5px" placeholder="例如：我去吃饭"></div>
 <div id="sent" style="display:none">⚠️ 哨兵未安装：横幅靠计数器兜底，且中断闸门失效</div>
 <div class="row"><span class="k">存活</span><span class="v" id="alive">–</span></div>
 <div class="row"><span class="k">余额</span><span class="v" id="bal">–</span></div>
@@ -72,6 +92,41 @@ h1{font-size:13px;margin:0 0 6px;font-weight:600;letter-spacing:.5px}
 <div class="row"><span class="k">当前单价</span><span class="v" id="price">–</span></div>
 <div id="step"><span class="k">正在行动：</span><span id="steptext">–</span><br>
 <span class="k">上次行动：</span><span id="age">–</span></div>
+<div class="card" id="peakCard" style="display:none"></div>
+<div class="card" id="costCard">
+  <div class="ttl">💸 最近 7 天花费 <span id="weekSum" style="float:right;font-weight:400;color:#8b8b93"></span></div>
+  <div id="week" class="bar7"></div>
+  <div class="sub" id="monthLine">–</div>
+  <div style="color:#8b8b93;margin:6px 0 3px">🧩 功能开关（1.3.0）</div>
+<div style="display:flex;flex-wrap:wrap;gap:5px 12px;margin-bottom:5px">
+  <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="setShowPeak" style="width:15px;height:15px"> 🔥 谷价提醒</label>
+  <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="setShowPhoneLog" style="width:15px;height:15px"> 📱 操控日志</label>
+  <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="setShowTimeline" style="width:15px;height:15px"> 💓 时间线</label>
+  <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="setShowPauseNote" style="width:15px;height:15px"> ⏸ 暂停备注</label>
+  <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="setShowCost" style="width:15px;height:15px"> 💸 花费统计</label>
+  <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="setQuick" style="width:15px;height:15px"> 🧲 设置外显</label>
+</div>
+<div style="display:flex;gap:6px;align-items:center;margin-top:5px"><span style="color:#8b8b93;flex:1">月度预算(元)</span>
+    <input id="setBudget" inputmode="decimal" style="width:64px;background:#141417;color:#e8e8ea;border:1px solid #2b2b31;border-radius:4px;padding:3px 5px" placeholder="50"></div>
+</div>
+<div class="card" id="logCard">
+  <div class="ttl">📱 手机操控日志 <span id="logN" style="float:right;font-weight:400;color:#8b8b93"></span></div>
+  <div id="phoneLog" class="sub">（暂无记录）</div>
+</div>
+<div class="card" id="tlCard">
+  <div class="ttl">💓 心跳时间线 <span style="float:right;font-weight:400;color:#6b6b73">最近 12 步</span></div>
+  <div id="timeline" class="sub">（暂无记录）</div>
+</div>
+<div class="card">
+  <div class="ttl">🎨 外观</div>
+  <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
+    <button class="skinb" data-t="dark">🌙 暗色</button>
+    <button class="skinb" data-t="light">☀️ 亮色</button>
+    <span style="color:#8b8b93;margin-left:6px">字号</span>
+    <input id="setFs" inputmode="decimal" style="width:52px;background:#141417;color:#e8e8ea;border:1px solid #2b2b31;border-radius:4px;padding:3px 5px" placeholder="12">
+    <span style="color:#6b6b73;font-size:10px">（外观存在本机，不影响别的设备）</span>
+  </div>
+</div>
 <div class="row"><span class="k">工作</span><span class="v"><span id="worktext">–</span> <button id="pauseBtn" style="background:#2b2b31;color:#ff9f0a;border:1px solid #ff9f0a;border-radius:10px;padding:2px 8px;font:11px ui-monospace,Menlo,monospace;font-weight:700">⏸ 暂停工作</button></span></div>
 <div class="row"><span class="k">状态</span><span class="v"><span id="state">–</span> · CPU <span id="cpu">–</span></span></div>
 <div class="row"><span class="k">上下文压力</span><span class="v" id="ctx">–</span></div>
@@ -89,11 +144,16 @@ h1{font-size:13px;margin:0 0 6px;font-weight:600;letter-spacing:.5px}
 <div class="row"><span class="k">内存 / 磁盘</span><span class="v"><span id="rss">–</span> · <span id="disk">–</span></span></div>
 <div class="row"><span class="k">累计请求/tokens</span><span class="v" id="tok">–</span></div>
 <div class="row"><span class="k">北京时间</span><span class="v" id="clock">–</span></div>
+<button id="boardDump" style="width:100%;background:#1c1c1f;color:#b9b9c0;border:1px solid #2b2b31;border-radius:5px;padding:5px;font:11px ui-monospace,Menlo,monospace;margin:4px 0 2px">📋 打印日志（校准用）</button>
+<div id="boardDumpMsg" style="color:#3ddc84;font-size:11px;word-break:break-all"></div>
+<div id="foot" style="color:#6b6b73;font-size:11px;text-align:center;margin:8px 0 4px;border-top:1px solid #1a1a1d;padding-top:6px">by:鹏冥月落</div>
 <script>
-var V=30, API=window.__HB_API||'', TOKEN=window.__HB_TOKEN||'';
+var V=33, API=window.__HB_API||'/api/heartbeat', TOKEN=window.__HB_TOKEN||'';
 document.getElementById("pauseBtn").onclick=async function(){
-  var b=this, want=!(window.__hbPaused); b.disabled=true;
-  try{var r=await fetch(API+(want?"/pause":"/pause/clear")+(TOKEN?("?t="+TOKEN):""),{method:"POST"});
+  var b=this, want=!(window.__hbPaused), note="";
+  var ni=document.getElementById("pauseNote"); if(ni) note=ni.value||"";
+  b.disabled=true;
+  try{var r=await fetch(API+(want?"/pause":"/pause/clear")+(TOKEN?("&t="+TOKEN):"")+(want&&note?((TOKEN?"&":"?")+"note="+encodeURIComponent(note)):""),{method:"POST"});
     if(!r.ok)throw 0; b.disabled=false; tick();
   }catch(e){b.disabled=false;b.textContent="需重启宿主后生效";setTimeout(tick,2500);}
 };
@@ -118,6 +178,13 @@ document.getElementById("setSave").onclick=async function(){
         "&dailyCostAlert="+encodeURIComponent(document.getElementById("setDaily").value||"10")+
         "&idleGraceSec="+encodeURIComponent(document.getElementById("setIdle").value||"15")+
         "&phoneTtlSec="+encodeURIComponent(document.getElementById("setPhoneTtl").value||"8");
+        +"&monthBudget="+encodeURIComponent((document.getElementById("setBudget")||{}).value||"50");
+        +"&showPeak="+((document.getElementById("setShowPeak")||{}).checked?"1":"0")
+        +"&showPhoneLog="+((document.getElementById("setShowPhoneLog")||{}).checked?"1":"0")
+        +"&showTimeline="+((document.getElementById("setShowTimeline")||{}).checked?"1":"0")
+        +"&showPauseNote="+((document.getElementById("setShowPauseNote")||{}).checked?"1":"0")
+        +"&showCost="+((document.getElementById("setShowCost")||{}).checked?"1":"0")
+        +"&quickBar="+((document.getElementById("setQuick")||{}).checked?"1":"0");
   try{var r=await fetch(API+"/settings?"+q+(TOKEN?("&t="+TOKEN):""),{method:"POST"});var j=await r.json();
     var rs2=Number(document.getElementById("setRefresh").value); if(!isFinite(rs2)||rs2<=0) rs2=1; rs2=Math.min(10,Math.max(0.5,rs2));
     document.getElementById("setRefresh").value=rs2;
@@ -190,6 +257,7 @@ async function tick(){
   document.getElementById("disk").textContent=j.disk?j.disk.freeGB+" GB ("+j.disk.usedPct+"%)":"?";
   document.getElementById("tok").textContent=j.tokens?(j.tokens.requests+" / "+(j.tokens.total/1e6).toFixed(1)+"M"):"–";
   document.getElementById("clock").textContent=(j.bjTime||"–")+"   "+(j.bjDate||"");
+  renderExtras(j);
   if(j.settings){
     if(document.activeElement!==document.getElementById("setOrg"))document.getElementById("setOrg").value=j.settings.orangeBelow;
     if(document.activeElement!==document.getElementById("setRed"))document.getElementById("setRed").value=j.settings.redBelow;
@@ -201,6 +269,17 @@ async function tick(){
     var cb2=document.getElementById("setBal"); if(cb2&&document.activeElement!==cb2) cb2.checked=(j.settings.balanceAlert!==false);
     document.getElementById("portHint").textContent="0=跟随 DSH 端口；auto=自动找空闲端口"+(j.streamPortActual?("（当前独立监听 "+j.streamPortActual+"）"):"");
   }
+  // 功能开关：控制各卡片显隐 + 回填勾选
+  var sw = j.settings || {};
+  var show = function(id, on){ var e=document.getElementById(id); if(e) e.style.display = on ? "" : "none"; };
+  show("costCard", sw.showCost !== false);
+  show("logCard", sw.showPhoneLog !== false);
+  show("tlCard", sw.showTimeline !== false);
+  var pn = document.getElementById("pauseNote"); if(pn && pn.parentElement) pn.parentElement.style.display = (sw.showPauseNote !== false) ? "flex" : "none";
+  if(!(sw.showPeak !== false)){ var pc2=document.getElementById("peakCard"); if(pc2) pc2.style.display="none"; }
+  var boxes = [["setShowPeak", sw.showPeak], ["setShowPhoneLog", sw.showPhoneLog], ["setShowTimeline", sw.showTimeline],
+               ["setShowPauseNote", sw.showPauseNote], ["setShowCost", sw.showCost], ["setQuick", sw.quickBar]];
+  boxes.forEach(function(bb){ var e=document.getElementById(bb[0]); if(e && document.activeElement!==e) e.checked = (bb[1] !== false); });
   var L=j.guard?j.guard.level:"ok";
   var critEl=document.getElementById("crit"), dailyEl=document.getElementById("daily");
   var dAlert=(j.settings&&j.settings.dailyCostAlert!=null)?Number(j.settings.dailyCostAlert):10;
@@ -246,4 +325,82 @@ function getRefreshMsB(){var v=null;try{v=Number(localStorage.getItem("dshhb-ref
 function armB(){try{clearInterval(window.__hbT)}catch(e){}window.__hbT=setInterval(tick,getRefreshMsB())}
 if(!__sync.done)document.getElementById("syncing").style.display="block";
 tick();armB();
+
+// ═══ 新增：峰价提醒 / 7 天花费 / 手机日志 / 时间线 / 外观 ═══
+function money(v){return "\u00a5"+(Number(v)||0).toFixed(2)}
+function hhmm(t){var d=new Date(t);return ("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2)}
+function renderExtras(j){
+  var pc=document.getElementById("peakCard");
+  if(pc&&j.peak&&j.peak.nextInSec!=null&&(!j.settings||j.settings.showPeak!==false)){
+    pc.style.display="block";
+    if(j.peak.peak){
+      pc.style.background="#2a1113";pc.style.borderColor="#5a1f22";pc.innerHTML="\ud83d\udd25 \u5f53\u524d<b style='color:#ff5d5d'>\u5cf0\u4ef7</b> \u00b7 "+hms(j.peak.nextInSec)+" \u540e\u8f6c\u8c37\u4ef7 \u21d2 <b>\u518d\u7b49\u7ea6 "+Math.round(j.peak.nextInSec/60)+" \u5206\u949f\uff0c\u540c\u6837\u7684\u6d3b\u513f\u4fbf\u5b9c\u4e00\u534a</b>";
+    }else{
+      pc.style.background="#0f2a18";pc.style.borderColor="#1f4a2c";pc.innerHTML="\ud83c\udf19 \u5f53\u524d<b style='color:#3ddc84'>\u8c37\u4ef7</b> \u00b7 \u8fd8\u80fd\u7701 "+hms(j.peak.nextInSec)+"\uff0c\u5927\u6d3b\u8d76\u7d27\u5e72";
+    }
+  }else if(pc){pc.style.display="none"}
+  // 7 天柱状图
+  var wk=document.getElementById("week");
+  if(wk&&j.cost&&j.cost.week){
+    var c=j.cost.week, mx=0.01, sum=0;
+    c.forEach(function(d){var v=Number(d.cost)||0; if(v>mx)mx=v; sum+=v});
+    var tk=new Date(Date.now()+28800000).toISOString().slice(0,10), h="";
+    c.forEach(function(d){
+      var v=Number(d.cost)||0, hh=Math.max(2,Math.round(v/mx*44));
+      h+='<div class="b7"><i style="height:'+hh+'px'+(d.date===tk?';background:#4c8dff':'')+'"></i><span>'+d.date.slice(8)+'</span></div>';
+    });
+    wk.innerHTML=h;
+    var ws=document.getElementById("weekSum"); if(ws)ws.textContent="\u5408\u8ba1 "+money(sum);
+    var mb=(j.settings&&j.settings.monthBudget!=null)?Number(j.settings.monthBudget):50, m=(j.cost.month||0);
+    var ml=document.getElementById("monthLine");
+    if(ml)ml.innerHTML="\u672c\u6708\u7d2f\u8ba1 "+money(m)+(mb>0?(" / \u9884\u7b97 "+money(mb)+(m>mb?" <b style='color:#ff5d5d'>\u26a0\ufe0f \u5df2\u8d85\u652f</b>":"")):"")+"";
+    var sb=document.getElementById("setBudget"); if(sb&&document.activeElement!==sb)sb.value=mb;
+  }
+  // 手机操控日志
+  var pl=document.getElementById("phoneLog");
+  if(pl){
+    var arr=j.phoneLog||[];
+    if(!arr.length)pl.innerHTML="\uff08\u6682\u65e0\u8bb0\u5f55\uff09";
+    else{
+      var out="";
+      arr.forEach(function(o){
+        var a=String(o.args||"").replace(/^\S+\s*/,"");
+        out+='<div class="logline">'+hhmm(o.at)+' <b>'+String(o.cmd||"")+'</b> '+a+'</div>';
+      });
+      pl.innerHTML=out;
+    }
+    var ln=document.getElementById("logN"); if(ln)ln.textContent=arr.length+" \u6761";
+  }
+  // 时间线
+  var tl=document.getElementById("timeline");
+  if(tl){
+    var h2=j.history||[];
+    if(!h2.length)tl.innerHTML="\uff08\u6682\u65e0\u8bb0\u5f55\uff09";
+    else{
+      var o2="";
+      for(var i=0;i<h2.length;i++){
+        var cur=h2[i], prev=h2[i+1];
+        var dur=prev?Math.round((cur.at-prev.at)/1000):null;
+        o2+='<div class="tl"><span class="t">'+hhmm(cur.at)+'</span><span>'+String(cur.step||"").replace(/</g,"&lt;")+(dur!=null?(' <span style="color:#6b6b73">('+fmt(dur)+')</span>'):"")+'</span></div>';
+      }
+      tl.innerHTML=o2;
+    }
+  }
+}
+// 外观（本机 localStorage）
+function applySkin(){
+  var th="dark", fs=12;
+  try{ th=localStorage.getItem("dshhb-theme")||"dark"; var f=Number(localStorage.getItem("dshhb-fs")); if(f>=10&&f<=20)fs=f; }catch(e){}
+  document.body.className=(th==="light"?"light":"");
+  document.body.style.fontSize=fs+"px";
+  var bs=document.querySelectorAll("#skinWrap button, .skinb");
+  for(var i=0;i<bs.length;i++){bs[i].className="skinb"+((bs[i].getAttribute("data-t")===th)?" on":"");}
+  var sf=document.getElementById("setFs"); if(sf&&document.activeElement!==sf)sf.value=fs;
+}
+document.querySelectorAll(".skinb").forEach(function(b){
+  b.onclick=function(){ try{localStorage.setItem("dshhb-theme",b.getAttribute("data-t"))}catch(e){} applySkin(); };
+});
+var __sf=document.getElementById("setFs");
+if(__sf)__sf.onchange=function(){ var v=Number(this.value); if(!(v>=10&&v<=20))v=12; try{localStorage.setItem("dshhb-fs",String(v))}catch(e){} applySkin(); };
+applySkin();
 </script></body></html>

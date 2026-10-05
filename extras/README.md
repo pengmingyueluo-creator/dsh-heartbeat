@@ -11,3 +11,10 @@
 - `pause.sh set|clear|status`：挂件上 ⏸ 按钮的命令行等价物。**`hb` 与哨兵都会读它**，
   所以暂停期间 agent 每步都会看到警告并停手。
 | `agents-sync.sh` | 把使用说明写进工作区 `AGENTS.md`（幂等）。**别人的 AI 自动记住这套东西就靠它**；手册被重置后重跑即可 |
+
+## 1.3.0：哨兵多写了什么
+
+`phone-wrapper.sh` 现在除了 `.dsh-phone-last.json`（最后一次操作），还会**逐条 append** 到
+`.dsh-phone-log.jsonl`（`{at, cmd, args}` 一行一条，只保留最近 200 条）。
+心跳板的「📱 最近操作」卡片就是读它 —— 用户随时能看到 agent 刚在手机上点了什么。
+日志文件路径跟随状态目录规则（`$DSH_HEARTBEAT_DIR` → 脚本所在目录 → `$DSH_HOME/heartbeat`）。

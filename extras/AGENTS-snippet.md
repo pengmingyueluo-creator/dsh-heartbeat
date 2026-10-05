@@ -76,8 +76,29 @@ bash "__WORKDIR__/phone-done"
 | `eggInteractive` | `true` | **运转互动**（长按「工作中」1 秒的彩蛋；启动后锁住拖动） |
 | `phoneTtlSec` | `8` | 「正在操控手机」横幅保留秒数 |
 | `pauseIdleMin` | `5` | 暂停超过这么久自动转空闲并清掉暂停（0=永不） |
+| `monthBudget` | `50` | 月度预算（元）；最近 7 天花费柱状图会拿它比对，超出标红 |
+| `showPeak` | `true` | 🔥 谷价倒计时 + 「省一半」提醒（胶囊 / 步骤框 / `hb` 三处都听它）|
+| `showPhoneLog` | `true` | 📱 手机操控日志（「最近操作」卡片）|
+| `showTimeline` | `true` | 💓 心跳时间线（最近 12 步 + 每步耗时）|
+| `showPauseNote` | **`false`** | ⏸ 暂停备注（备注框 + 「带备注暂停」按钮）|
+| `showCost` | `true` | 💸 最近 7 天花费卡片 |
+| `posCheckMin` | `1` | 挂件位置自检间隔（分钟，1~10）：每隔这么久校验一次自己的位置，不在屏幕合理范围内就校准回默认位置 |
+| `quickBar` | **`false`** | 🧲 **设置外显**：挂件胶囊下多一条快捷设置条（⏸ ⛔ 🔥 📱 💓 💸 ⚙），免展开面板 |
 
 > 刷新间隔（0.5~10 秒，默认 1）存在浏览器 localStorage，键名 `dshhb-refresh`。
+
+### 五·五、1.3.0 新功能（给 AI 的重点）
+
+- **谷价提醒**：峰价时 `hb` 会打印 `🔥 现在峰价 · X 后转谷价 ⇒ 同一轮活儿便宜一半` ✓
+  **看到就照做**：如果这一步是「大活」（批量/长任务/大量抓取），**先问用户要不要等谷价** ✓
+- **手机操控日志**：哨兵把每次改屏幕操作 append 到状态目录的 `.dsh-phone-log.jsonl` ✓
+  （`{at, cmd, args}` 每行一条 ✓ 200 条上限 ✓）→ 挂件/串流页的「最近操作」卡片读它 ✓
+- **心跳时间线**：`state.history` = 最近 12 步 `{at, step}` ✓（耗时 = 相邻两条时间差 ✓）
+- **暂停带备注**：`POST /api/heartbeat/pause?note=我去吃饭` ✓ → `state.pause.note` ✓
+  **看到备注就照做**：用户写「我去吃饭」= 他不在，别做需要他确认的事 ✓
+- **7 天花费**：`state.cost.week`（7 天 `{date,cost}`）+ `state.cost.month`（本月累计 ✓ 自建按天记 ✓）
+- **每个功能都有开关**：`showPeak / showPhoneLog / showTimeline / showCost` ✓ 默认**开** ✓；`showPauseNote` ✓ 默认**关** ✓（关了就是普通暂停 ✓）
+  ⇒ **用户关掉哪个，前端就不显示**；`hb` 的峰价提醒跟随 `showPeak` ✓
 
 ### 六、想改它
 

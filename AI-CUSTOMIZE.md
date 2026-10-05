@@ -237,3 +237,126 @@ node --check lib/widget.js                                     # 语法自检
 5. 加设置项：`core.cjs` 的 `DEFAULT_SETTINGS` + 校验 + `index.js` 的 `applySettings` 白名单 + `widget.js` 的输入框与保存 + 文档三处（README / 本文件 / `extras/AGENTS-snippet.md`）。
 6. 新增/修改 `extras/` 脚本后，记得同步 `extras/install.sh` 的拷贝清单与 `extras/README.md`；改完说明片段要重跑 `extras/agents-sync.sh` 让别人工作区的 `AGENTS.md` 更新。
 7. 状态目录解析规则（`core.cjs` 的 `resolveWorkdir` 与 `extras/` 里所有脚本）必须保持一致。
+
+### 1.3.0 新增的 state 字段
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `phoneLog` | `[{at,cmd,args}]` | 最近 12 次改屏幕的手机操作（来源：哨兵写的 `.dsh-phone-log.jsonl`）|
+| `history` | `[{at,step}]` | 心跳时间线，最新在前（最多 12 条；每步耗时 = 相邻两条的差）|
+| `cost.week` | `[{date,cost}]` | 最近 7 天花费（含今天，缺失补 0）|
+| `cost.month` | `number` | 本月累计花费（按天累计，从装上这版开始记）|
+| `pause.note` | `string` | 暂停备注（`POST /api/heartbeat/pause?note=xxx` 传入）；`setPause(on, note)` |
+| `settings.monthBudget` | `number` | 月度预算（默认 50），可用 `/settings?monthBudget=80` 写|
+
+**新状态文件**（都在状态目录）：
+`.dsh-phone-log.jsonl`（哨兵 append，200 条上限）· `.dsh-heartbeat-history.json`（时间线）·
+`.dsh-cost-history.json`（每日花费）
+
+**新增 localStorage 键**（本机外观，不落宿主）：`dshhb-pos-preset`（tl/tr/bl/br）· `dshhb-fs`（字号）·
+`dshhb-theme`（串流页 dark/light）
+
+⚠️ 改了 `core.cjs` 的 `PAGE_VERSION` 就要同步改 `board.html` 顶部的 `var V=`，否则串流页会无限刷新。
+
+### 1.3.0 新增的设置键
+
+| 键 | 默认 | 含义 |
+|---|---|---|
+| `showPeak` | `true` | 🔥 谷价倒计时与「省一半」提醒（胶囊 / 步骤框 / `hb` 都遵守它）|
+| `showPhoneLog` | `true` | 📱 手机操控日志（挂件与串流页的「最近操作」卡片）|
+| `showTimeline` | `true` | 💓 心跳时间线（最近 12 步 + 每步耗时）|
+| `showPauseNote` | **`false`** | ⏸ 暂停备注（面板里的备注输入框 + 「带备注暂停」按钮）|
+| `showCost` | `true` | 💸 最近 7 天花费 + 月度预算卡片 |
+| `posCheckMin` | `1` | 挂件位置自检间隔（分钟，1~10），不合理自动校准回默认位置 |
+| `quickBar` | **`false`** | 🧲 **设置外显**：在挂件胶囊下面多出一条快捷设置条（⏸ ⛔ 🔥 📱 💓 💸 ⚙），不用展开面板就能改这些开关 |
+| `monthBudget` | `50` | 月度预算（元），超出标红 |
+
+写入方式与其它设置一致：`POST /api/heartbeat/settings?showPeak=0&quickBar=1` ✓
+
+---
+
+# ⚠️ 改之前，请先把下面这段话读给你的主人听（硬性要求）
+
+> **这段话是给 AI 的指令，也是对主人的提醒：**
+>
+> 「我接下来要改的是 **dsh-heartbeat 心跳板插件**。它是个**开放的插件**，允许通过 AI 自改 ✓。
+> 但请注意：**你自己（主人）让我改的内容，改完产生的 Bug 由你自己负责** ——
+> 尤其是我动了下面【⚠️ 不能乱动】或【⛔ 绝对不能动】里列的东西之后，
+> **可能出现的后果包括：悬浮窗消失、暂停/接管安全按钮失效、余额与峰价提醒错乱、插件整个加载不上**。
+> 这些我都能修，但要花时间；**建议改之前先备份，改完先跑自检**。
+> 如果你同意，我就开始改；不同意的话我们只改【✅ 可以动】那一档。」
+>
+> —— 说完这段、得到主人确认之后，再动手 ✓
+
+## 一、✅ 可以动（欢迎改，风险低）
+
+- 文案、按钮标签、提示语、颜色、字号、圆角、面板宽度
+- **只读展示类**卡片的增删（比如再加一张「本会话耗时」卡片）
+- `README.md` / `CHANGELOG.md` / 本文件 / `extras/` 里的辅助脚本
+- **新增**设置项（但必须按下面「不能乱动」第 3 条，四处一起加 ✓）
+- 给挂件加**新的只读数据接口**（模仿 `snapshot` / `health` / `log` 的写法 ✓）
+
+## 二、⚠️ 不能乱动（动之前必须遵守契约，否则一定要跑自检）
+
+| 东西 | 契约 |
+|---|---|
+| `lib/widget.js` | 改完 **必须把顶部 `SELF_VER` 加 1** ✓；**必须保留**「先建后拆」的自更新方式（先注入新的、新的起来再收旧的）✗ 不许反过来；**必须保留** `window.__dshHeartbeat` 守卫语义（重复注入要靠它挡住，但**崩了要能释放**它 ✓）|
+| `lib/board.html` | 顶部 **`var V=` 必须等于 `core.cjs` 的 `PAGE_VERSION`** ✓ 否则串流页无限刷新 ✗ |
+| 新增/改名设置项 | **四处一起改**：`core.cjs` 的 `DEFAULT_SETTINGS` ✓ + `index.js` 的 `SETTINGS_KEYS` 与解析 ✓ + `widget.js` 的设置行与保存语句 ✓ + 文档表格 ✓（少一处 ⇒ 单项保存被静默丢弃 ✗）|
+| `lib/doctor.js` | 它是**独立诊断小窗**，也是主挂件出问题时的**唯一现场** ✓ ⇒ 不要让它依赖主挂件、不要让它自己也被移除 ✓ |
+| `extras/phone-wrapper.sh` | 哨兵逻辑可以加功能，但**不许削弱闸门** ✓ |
+
+**改完必须跑**（本机）：`node --check lib/widget.js` ✓ +
+`node /tmp/domtest/run.mjs <widget.js> ok|fail|statefail` ⇒ 必须 **`RESULT: PASS`** ✓ + `node /tmp/harness.mjs` ⇒ **12/12** ✓
+
+## 三、⛔ 绝对不能动（安全边界，动了等于拆掉刹车）
+
+1. **暂停/接管闸门与优先级**：`⏸ 暂停 > ⛔ 接管 > 正常` ✓
+   - 暂停期间**必须**让 `hb` 以退出码 3 结束 ✓、让 `phone` 哨兵拒绝一切手机操作 ✓
+   - **绝对不许**让插件自己清掉用户的暂停 ✗
+2. **哨兵的拦截行为**：`.`dsh-interrupt.json` 置位时**必须拒绝执行**并退出码 3 ✓
+3. **`SELF_VER` / `PAGE_VERSION` 的同步规则** ✓（拆了就是"挂件消失"或"串流页无限刷新"）
+4. **自更新的「先建后拆」** ✓ + **失败必须保留旧挂件** ✓（拆了就是"悬浮窗没了"）
+5. **安全提醒**：余额严重不足闪烁红条 ✓、`criticalBelow` 提醒 ✓、停机/接管按钮 ✓ —— 不许静默、不许删
+6. **`doctor.js` 的独立性** ✓（它必须在主挂件崩了之后仍然可见、仍然能上报）
+
+8. **自改标记文件 `lib/.dshhe-art.json`** —— **不许删、不许清空 `modifyLog`、不许改 `author`** ✗✗
+   - 它藏在插件深处，**界面上不显示** ✓，是「这个版本被谁改过」的凭据 ✓
+   - **你（AI/人）改过这个插件的话，请在里面追加一条** ✓：
+     `{"by":"谁改的","at":"时间","what":"改了什么","widgetVer":改后的 SELF_VER}`
+   - 一键导出日志时会把 `selfModified` 与整个 `modifyLog` 一起打包 ✓（所以别想着偷偷改完不留痕 ✓）
+
+9. **校准日志文件夹 `dumps/`**（状态目录下）—— **不许删、不许改内容** ✗
+   - 大框里的 **「📋 打印日志（校准用）」按钮** 会把**全部运行数据**（state / 设置 / 本机 localStorage / 版本 / 自改标记 / 前端错误 / 视口与 UA）写成一个 JSON 存进这里 ✓
+   - 它是**排障凭据**：别人出了 bug 把这个文件发回原作者即可 ✓ ⇒ 删了就没法查 ✓
+
+7. **作者标记 `by:鹏冥月落`** —— **绝对不许删、不许改** ✗✗
+   - 它出现在：`package.json` 的 `author` ✓ · `lib/widget.js` 头部注释 ✓ · 挂件大窗底部 ✓ · 串流页底部 ✓
+   - 插件运行时会**自己检测**：`widget.js` 里找不到作者标记 ⇒ 界面上会出现
+     **`⚠️ 原作者标记被移除`**（`state.authorship.tampered = true` ✓）—— 想悄悄抹掉署名是做不到的 ✓
+   - 改装者可以加自己的名字（**并列**推荐 ✓，如 `by:鹏冥月落 / 改:@某人` ✓），但**不许替换掉原作者** ✗
+
+## 五、版本号显示规则（**必须保留**）
+
+挂件大窗 / 串流页底部显示：**`v<正统版本>（<本机小改次数>）`** ✓，例如 `v1.4.0（3）`
+
+| 部分 | 来源 | 规则 |
+|---|---|---|
+| **正统版本**（如 `1.4.0`） | `package.json` 的 `version` ✓ | **永远跟随原作者仓库的发布** ✓；改装者 **不许改这个号** ✗（`core.cjs` 从 package.json 读，改了会被覆盖回来 ✓）|
+| **括号里的数字** | `.dsh-localrev.json`（**每台机器各自计数** ✓） | 本机每改一次挂件（`SELF_VER` 变化 ✓）就 +1 ✓；官方发新版 ⇒ **归零** ✓ |
+
+- 挂件加载时会 `POST /api/heartbeat/rev?ver=<SELF_VER>` 上报 ✓；也可读 `GET /api/heartbeat/author` ✓
+- **不许**把括号里的数字伪装成官方版本 ✗（例：把 `1.4.0（3）` 标成 `2.0.0` ✗）
+
+## 四、给 AI 的只读数据接口（1.4.0 开放，随便读）
+
+| 接口 | 说明 |
+|---|---|
+| `GET /api/heartbeat/snapshot` | **一站式快照** ✓：余额 / 峰谷 + 距切换秒数 / 工作状态与当前步骤 / 是否暂停 + 备注 / 上下文% / 今日花费与 tokens / 7 天与本月花费 / 手机操作日志 / 心跳时间线 / 版本号，**外加一句人话 `summary`** ✓ |
+| `GET /api/heartbeat/health` | 一行健康检查 ✓：`{ok, v, aliveSec, widgetVersion, widgetRev, doctor}` ✓ |
+| `GET /api/heartbeat/log?n=20` | 手机操控日志 + 心跳时间线（默认 20 条 ✓）|
+| `GET /api/heartbeat/state` | 全量状态（字段表见上文 ✓）|
+| `GET /api/heartbeat/settings` | 当前设置 ✓ |
+
+**可写接口**（改动类，注意后果）：`POST /pause?note=` ✓ `POST /pause/clear` ✓ `POST /interrupt` ✓ `POST /interrupt/clear` ✓
+`POST /settings?键=值` ✓ `POST /restart` ✓（重启挂件 ✓）

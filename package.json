@@ -1,6 +1,6 @@
 {
   "name": "dsh-heartbeat",
-  "version": "1.2.0",
+  "version": "1.4.0",
   "description": "DSH 心跳板：余额/峰谷价/上下文进度/今日用量可视化/暂停工作/接管手机，双形态（串流页 + 页面挂件）",
   "repository": {
     "type": "git",
@@ -42,5 +42,6 @@
   },
   "scripts": {
     "check": "node --check lib/core.cjs && node --check lib/index.js && node --check lib/widget.js"
-  }
+  },
+  "author": "鹏冥月落"
 }
