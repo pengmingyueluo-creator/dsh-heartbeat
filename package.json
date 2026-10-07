@@ -1,7 +1,7 @@
 {
   "name": "dsh-heartbeat",
-  "version": "1.3.0",
-  "description": "DSH 心跳板：余额/峰谷价/上下文进度/今日用量可视化/暂停工作/接管手机，双形态（串流页 + 页面挂件）",
+  "version": "1.4.0",
+  "description": "数据心流（dsh-heartbeat）—— DSH 心跳板插件：余额/峰谷/上下文/暂停接管/手机操控横幅/诊断/备份",
   "repository": {
     "type": "git",
     "url": "https://github.com/pengmingyueluo-creator/dsh-heartbeat.git"

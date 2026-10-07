@@ -57,12 +57,16 @@ body.light input{background:#fff!important;color:#1c1c1f!important;border-color:
 <div id="crit" style="display:none;position:fixed;left:0;right:0;bottom:0;background:#ff3b30;color:#fff;font-weight:700;padding:8px 6px;text-align:center;z-index:99;animation:blink .9s ease-in-out infinite;white-space:pre-line;line-height:1.4">余额严重不足</div>
 <div id="warn">⚠️ 正在操控手机 · 请勿触摸<br><span id="warntext" style="font-weight:400;font-size:12px"></span></div>
 <h1><span id="dot"></span>DSH 心跳</h1>
+<div id="clock" style="font-size:15px;letter-spacing:.5px;color:#3ddc84;margin:2px 0 6px;font:600 15px ui-monospace,Menlo,monospace">–</div>
 <div id="modes">
   <button data-m="widget">页面挂件</button>
   <button data-m="stream">串流页</button>
   <button data-m="both">两者都开</button>
 </div>
+<div id="portActual" style="color:#3ddc84;font-size:10px;margin:3px 0 0 0;word-break:break-all;display:none">实际端口：读取中…</div>
 <div style="color:#6b6b73;font-size:11px;margin:0 0 7px;line-height:1.35">💡 想在我操控<b style="color:#8b8b93">别的 App</b> 时也能按接管键 / 看到横幅？<br>把这一页放进 <b style="color:#8b8b93">Chrome 小窗</b>（它浮在别的应用上面）。</div>
+<button id="btnBackup" style="width:49%;background:#101b2b;color:#4c8dff;border:1px solid #4c8dff;border-radius:6px;padding:7px;font:12px ui-monospace,Menlo,monospace;font-weight:700;margin:0 0 6px">💾 备份当前状态</button><button id="btnRestore" style="width:49%;background:#1c1c1f;color:#ff9f0a;border:1px solid #ff9f0a;border-radius:6px;padding:7px;font:12px ui-monospace,Menlo,monospace;margin:0 0 6px">↩ 回档到最近备份</button>
+<button id="btnStartWidget" style="width:100%;background:#101b2b;color:#4c8dff;border:1px solid #4c8dff;border-radius:6px;padding:7px;font:12px ui-monospace,Menlo,monospace;font-weight:700;margin:0 0 6px">▶ 启动小窗（把挂件起回来）</button>
 <button id="btnStop">⛔ 我要接管 · 停止操控</button>
 <div style="border:1px solid #1a1a1d;border-radius:6px;padding:7px;margin:0 0 8px">
   <div style="color:#8b8b93;margin-bottom:5px">⚙ 设置</div>
@@ -70,8 +74,6 @@ body.light input{background:#fff!important;color:#1c1c1f!important;border-color:
     <input id="setOrg" type="number" style="width:64px;background:#141417;color:#e8e8ea;border:1px solid #2b2b31;border-radius:4px;padding:3px 5px"></div>
   <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><span style="color:#8b8b93;flex:1">余额红 &lt;</span>
     <input id="setRed" type="number" style="width:64px;background:#141417;color:#e8e8ea;border:1px solid #2b2b31;border-radius:4px;padding:3px 5px"></div>
-  <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><span style="color:#8b8b93;flex:1">串流端口</span>
-    <input id="setPort" style="width:64px;background:#141417;color:#e8e8ea;border:1px solid #2b2b31;border-radius:4px;padding:3px 5px" placeholder="0/auto"></div>
   <div style="color:#6b6b73;font-size:11px;margin-bottom:5px" id="portHint">0=跟随 DSH 端口；auto=自动找空闲端口</div>
   <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><span style="color:#8b8b93;flex:1">空闲判定(秒)</span><input id="setIdle" inputmode="decimal" style="width:64px;background:#141417;color:#e8e8ea;border:1px solid #2b2b31;border-radius:4px;padding:3px 5px" placeholder="15"></div>
 <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><span style="color:#8b8b93;flex:1">手机横幅(秒)</span><input id="setPhoneTtl" inputmode="decimal" style="width:64px;background:#141417;color:#e8e8ea;border:1px solid #2b2b31;border-radius:4px;padding:3px 5px" placeholder="8"></div>
@@ -143,17 +145,40 @@ body.light input{background:#fff!important;color:#1c1c1f!important;border-color:
 <div class="row"><span class="k">本会话</span><span class="v" id="sess">–</span></div>
 <div class="row"><span class="k">内存 / 磁盘</span><span class="v"><span id="rss">–</span> · <span id="disk">–</span></span></div>
 <div class="row"><span class="k">累计请求/tokens</span><span class="v" id="tok">–</span></div>
-<div class="row"><span class="k">北京时间</span><span class="v" id="clock">–</span></div>
 <button id="boardDump" style="width:100%;background:#1c1c1f;color:#b9b9c0;border:1px solid #2b2b31;border-radius:5px;padding:5px;font:11px ui-monospace,Menlo,monospace;margin:4px 0 2px">📋 打印日志（校准用）</button>
 <div id="boardDumpMsg" style="color:#3ddc84;font-size:11px;word-break:break-all"></div>
-<div id="foot" style="color:#6b6b73;font-size:11px;text-align:center;margin:8px 0 4px;border-top:1px solid #1a1a1d;padding-top:6px">by:鹏冥月落</div>
+<div style="display:flex;gap:4px;margin:6px 0 2px">
+  <textarea id="boardSayBox" rows="2" placeholder="给小窗留言…（回车发送，会送到 agent 的下一次心跳）" style="flex:1;background:#141417;color:#e8e8ea;border:1px solid #2b2b31;border-radius:5px;padding:5px;font:12px ui-monospace,Menlo,monospace;resize:vertical"></textarea>
+  <button id="boardSaySend" style="width:64px;background:#1c1c1f;color:#3ddc84;border:1px solid #3ddc84;border-radius:5px;font:12px ui-monospace,Menlo,monospace;font-weight:700">发送</button>
+</div>
+<button id="boardFocus" style="width:100%;background:#1c1c1f;color:#4c8dff;border:1px solid #4c8dff;border-radius:5px;padding:5px;font:12px ui-monospace,Menlo,monospace;font-weight:700;margin:2px 0">↩ 切回 DSH（agent 下次心跳时切前台）</button>
+<div style="color:#6b6b73;font-size:10px;text-align:center;margin:0 0 2px">需无障碍权限在线（设置 → 📱 手机控制）</div>
+<div id="boardFocusMsg" style="color:#8b8b93;font-size:11px;margin-bottom:4px"></div>
+<div id="boardTodo" style="display:none;color:#8b8b93;font-size:11px;margin:4px 0;line-height:1.35"></div>
+<div id="boardAsk" style="display:none;background:#101b2b;border:1px solid #2a4a7a;border-radius:6px;padding:7px;margin:4px 0">
+  <div id="boardAskQ" style="color:#cfe3ff;font-size:12px;margin-bottom:6px"></div><div id="boardAskB" style="display:flex;gap:6px;flex-wrap:wrap"></div></div>
+<div id="boardBurn" style="display:none;color:#ff9f0a;font-size:11px;margin:4px 0"></div>
+<div id="boardSayMsg" style="color:#8b8b93;font-size:11px;margin-bottom:4px"></div>
+<div id="boardInbox" style="font-size:11px;color:#b9b9c0;margin-bottom:4px"></div>
+<div id="foot" style="color:#6b6b73;font-size:11px;text-align:center;margin:8px 0 4px;border-top:1px solid #1a1a1d;padding-top:6px"><span style="color:#4c8dff;font-weight:700;letter-spacing:.5px">数据心流</span> · by:鹏冥月落</div>
 <script>
-var V=33, API=window.__HB_API||'/api/heartbeat', TOKEN=window.__HB_TOKEN||'';
+/* PREFS_INHERIT: 本地偏好默认继承插件侧 ✓（插件没设过才用本地/默认）*/
+
+(function(){try{ if(!localStorage.getItem('dshhb-refresh')){ var __s=sessionStorage.getItem('dshhb-refresh'); if(__s) localStorage.setItem('dshhb-refresh',__s); } }catch(e){}})();
+
+var V=35, API=window.__HB_API||'/api/heartbeat', TOKEN=window.__HB_TOKEN||'';
+
+// ── 统一带超时的请求（串流页维护 ✓）：以前没有超时 ⇒ 接口一挂就永远卡在"正在同步" ✗
+function tfetch(url, opts, ms) {
+  opts = opts || {};
+  try { if (!opts.signal && typeof AbortSignal !== 'undefined' && AbortSignal.timeout) opts.signal = AbortSignal.timeout(ms || 4000); } catch (e) {}
+  return fetch(url, opts);
+}
 document.getElementById("pauseBtn").onclick=async function(){
   var b=this, want=!(window.__hbPaused), note="";
   var ni=document.getElementById("pauseNote"); if(ni) note=ni.value||"";
   b.disabled=true;
-  try{var r=await fetch(API+(want?"/pause":"/pause/clear")+(TOKEN?("&t="+TOKEN):"")+(want&&note?((TOKEN?"&":"?")+"note="+encodeURIComponent(note)):""),{method:"POST"});
+  try{var r=await tfetch(API+(want?"/pause":"/pause/clear")+(TOKEN?("&t="+TOKEN):"")+(want&&note?((TOKEN?"&":"?")+"note="+encodeURIComponent(note)):""),{method:"POST"});
     if(!r.ok)throw 0; b.disabled=false; tick();
   }catch(e){b.disabled=false;b.textContent="需重启宿主后生效";setTimeout(tick,2500);}
 };
@@ -162,18 +187,40 @@ function fmt(s){if(s==null)return"–";var m=Math.floor(s/60);return(m?m+"分":"
 function hms(s){if(s==null)return"–";var h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h?h+"时"+m+"分":m+"分"+(s%60)+"秒"}
 document.getElementById("btnStop").onclick=async function(){
   this.disabled=true; this.textContent="已发送…";
-  try{await fetch(API+"/interrupt"+(TOKEN?("?t="+TOKEN):""),{method:"POST"});}catch(e){}
+  try{await tfetch(API+"/interrupt"+(TOKEN?("?t="+TOKEN):""),{method:"POST"});}catch(e){}
   setTimeout(()=>{this.disabled=false;this.textContent="⛔ 我要接管 · 停止操控";},1800);
 };
 async function setMode(m){
-  try{await fetch(API+"/mode?mode="+m+(TOKEN?("&t="+TOKEN):""),{method:"POST"});}catch(e){}
+  try{await tfetch(API+"/mode?mode="+m+(TOKEN?("&t="+TOKEN):""),{method:"POST"});}catch(e){}
   tick();
 }
 document.querySelectorAll("#modes button").forEach(function(b){b.onclick=function(){setMode(b.getAttribute("data-m"))}});
 document.getElementById("setSave").onclick=async function(){
+  /* BOARD_DIFF_SAVE：只发真正改过的字段（防止"整表回灌"把旧值写回 ✓ 用户要求）*/
+  var __lastSaved = null;
+  function __formAll(){
+    var v=function(id){var e=document.getElementById(id);return e?e.value:null};
+    var k=function(id){var e=document.getElementById(id);return e?!!e.checked:null};
+    return { orangeBelow:Number(v("setOrg")), redBelow:Number(v("setRed")), dailyCostAlert:Number(v("setDaily")),
+             monthBudget:Number(v("setBudget")), idleGraceSec:Number(v("setIdle")), phoneTtlSec:Number(v("setPhoneTtl")),
+             pauseIdleMin:Number(v("setPauseIdle")), flashEveryMin:Number(v("setFlash")), flashRedMin:Number(v("setFlashRed")),
+             showPeak:k("setShowPeak"), showPhoneLog:k("setShowLog"), showTimeline:k("setShowTimeline"),
+             showPauseNote:k("setShowPauseNote"), showCost:k("setShowCost"), quickBar:k("setQuick") };
+  }
+  function __diffOnly(){
+    var f=__formAll(), base=__lastSaved||{};
+    var out={}, n=0;
+    for(var k2 in f){ if(f[k2]===null) continue; var a=f[k2], b2=base[k2];
+      var same=(typeof a==='boolean'||typeof b2==='boolean')?(!!a===!!b2):(Number(a)===Number(b2));
+      if(!same){ out[k2]=a; n++; } }
+    return {diff:out,n:n};
+  }
+  var __d=__diffOnly();
+  if(__d.n===0){ var sm=document.getElementById("setMsg"); if(sm) sm.textContent="无改动，跳过保存（等同于没改 ✓）"; setTimeout(function(){try{document.getElementById("setMsg").textContent=""}catch(e){}},3000); tick(); return; }
+
+
   var q="orangeBelow="+encodeURIComponent(document.getElementById("setOrg").value)+
         "&redBelow="+encodeURIComponent(document.getElementById("setRed").value)+
-        "&streamPort="+encodeURIComponent(document.getElementById("setPort").value||"0")+
         "&balanceAlert="+(document.getElementById("setBal").checked?"1":"0")+
         "&dailyCostAlert="+encodeURIComponent(document.getElementById("setDaily").value||"10")+
         "&idleGraceSec="+encodeURIComponent(document.getElementById("setIdle").value||"15")+
@@ -185,18 +232,19 @@ document.getElementById("setSave").onclick=async function(){
         +"&showPauseNote="+((document.getElementById("setShowPauseNote")||{}).checked?"1":"0")
         +"&showCost="+((document.getElementById("setShowCost")||{}).checked?"1":"0")
         +"&quickBar="+((document.getElementById("setQuick")||{}).checked?"1":"0");
-  try{var r=await fetch(API+"/settings?"+q+(TOKEN?("&t="+TOKEN):""),{method:"POST"});var j=await r.json();
+  try{var r=await tfetch(API+"/settings?"+q+(TOKEN?("&t="+TOKEN):""),{method:"POST"});var j=await r.json();
     var rs2=Number(document.getElementById("setRefresh").value); if(!isFinite(rs2)||rs2<=0) rs2=1; rs2=Math.min(10,Math.max(0.5,rs2));
     document.getElementById("setRefresh").value=rs2;
     try{localStorage.setItem("dshhb-refresh",String(Math.round(rs2*1000)))}catch(e){}
     armB();
+    try{__lastSaved=__formAll();}catch(e){}
     document.getElementById("setMsg").textContent="已保存（独立端口 "+(j.streamPortActual||0)+"）";
     setTimeout(function(){document.getElementById("setMsg").textContent=""},3000);}catch(e){document.getElementById("setMsg").textContent="保存失败";}
   tick();
 };
 var __tc={at:0,data:null};
 async function todayFB(){ if(Date.now()-__tc.at<30000) return __tc.data;
- try{var r=await fetch("/api/token-usage-stats",{cache:"no-store"});var j2=await r.json();
+ try{var r=await tfetch("/api/token-usage-stats",{cache:"no-store"});var j2=await r.json();
   var BJ=28800000,key=new Date(Date.now()+BJ).toISOString().slice(0,10),req=0,tok=0,cost=0,n=0;
   (j2.series||[]).forEach(function(bb){if(!bb||!bb.totals)return;if(new Date(bb.startTime+BJ).toISOString().slice(0,10)!==key)return;req+=Number(bb.totals.requestCount)||0;tok+=Number(bb.totals.totalTokens)||0;cost+=Number(bb.totals.cost)||0;n++});
   __tc={at:Date.now(),data:n>0?{requests:req,tokens:tok,cost:cost}:(j2.totals?{requests:j2.totals.requestCount,tokens:j2.totals.totalTokens,cost:j2.totals.cost}:null)};
@@ -212,9 +260,10 @@ function syncUI(j){
 }
 async function tick(){
  try{
-  var r=await fetch(u("/state"),{cache:"no-store"});
+  var r=await tfetch(u("/state"),{cache:"no-store"});
   if(r.status===401){ if(TOKEN){location.reload();} else {document.getElementById("steptext").textContent="未通过鉴权（浏览器里请先登录 DSH）";} return; }
-  var j=await r.json(); if(!j.today){var tf2=await todayFB(); if(tf2) j.today=tf2;}
+  var j=await r.json();
+        /* ST_DATA_OK */ try{ __sync.done=true; var __sy=document.getElementById('syncing'); if(__sy) __sy.style.display='none'; try{sessionStorage.setItem('dshhb-synced',String(Date.now()))}catch(e){} }catch(e){} if(!j.today){var tf2=await todayFB(); if(tf2) j.today=tf2;}
   if(j.v!==undefined&&j.v>V){location.replace(location.pathname+"?v="+V);return;}
   document.querySelectorAll("#modes button").forEach(function(b){b.className=(b.getAttribute("data-m")===j.mode)?"on":""});
   document.getElementById("sent").style.display=(j.sentinel&&j.sentinel.installed)?"none":"block";
@@ -256,13 +305,49 @@ async function tick(){
   document.getElementById("rss").textContent=j.rssMB==null?"?":j.rssMB+" MB";
   document.getElementById("disk").textContent=j.disk?j.disk.freeGB+" GB ("+j.disk.usedPct+"%)":"?";
   document.getElementById("tok").textContent=j.tokens?(j.tokens.requests+" / "+(j.tokens.total/1e6).toFixed(1)+"M"):"–";
-  document.getElementById("clock").textContent=(j.bjTime||"–")+"   "+(j.bjDate||"");
+  var __pa=document.getElementById("portActual");
+  if(__pa){ var __sp=(j.streamPortActual!=null?j.streamPortActual:null); var __mode=(j.settings&&j.settings.streamPort);
+    __pa.innerHTML = "实际端口：" + (__sp? ("<b>"+__sp+"</b>" + (String(__mode)==="auto" ? "（自动找到的空闲端口）" : (String(__mode)==="0" ? "（跟随 DSH 端口）" : "（你指定的）"))) : "还没监听/未生效") + (__sp? ("　→　http://127.0.0.1:"+__sp+"/heartbeat") : "");
+  }
+  var __pa=document.getElementById("portActual");
+  if(__pa){ var __md=String((j.settings&&j.settings.mode)||"both"); var __on=(__md==="stream"||__md==="both") && (String(__spm)==="0" || String(__spm)==="auto");
+    if(!__on){ __pa.style.display="none"; } else { __pa.style.display="";
+      var __sp=(j.streamPortActual!=null?j.streamPortActual:null);
+      __pa.innerHTML="实际端口："+(__sp?("<b>"+__sp+"</b>"+(String(__spm)==="auto"?"（自动找到的空闲端口）":(String(__spm)==="0"?"（跟随 DSH 端口）":"（你指定的）"))+" → http://127.0.0.1:"+__sp+"/heartbeat"):"还没监听/未生效");
+    } }
+  (function(){
+  try{
+    var td=document.getElementById("boardTodo");
+    if(td){ if(j.todo&&j.todo.items&&j.todo.items.length){td.style.display="";td.innerHTML="📋 当前计划："+j.todo.items.join(" · ");}else{td.style.display="none";} }
+    var ab=document.getElementById("boardAsk");
+    if(ab){ var q=j.ask;
+      if(q&&q.q&&!q.answer){ ab.style.display="";
+        document.getElementById("boardAskQ").textContent="❓ agent 在等你回答："+q.q;
+        var bs=document.getElementById("boardAskB");
+        if(bs&&bs.getAttribute("data-for")!==String(q.at)){ bs.setAttribute("data-for",String(q.at)); bs.innerHTML="";
+          (q.options||["同意","拒绝"]).forEach(function(op,idx){
+            var btn=document.createElement("button"); btn.textContent=(idx===0?"✅ ":"❌ ")+op;
+            btn.setAttribute("style","flex:1;background:#16233a;color:"+(idx===0?"#3ddc84":"#ff8a8a")+";border:1px solid "+(idx===0?"#3ddc84":"#ff5d5d")+";border-radius:5px;padding:5px;font:11px ui-monospace,Menlo,monospace");
+            btn.onclick=function(){ try{ fetch(API+"/answer?text="+encodeURIComponent(op)+"&by="+encodeURIComponent("串流页"),{method:"POST"}); bs.innerHTML='<span style="color:#3ddc84">✅ 已回答：'+op+'</span>'; }catch(e){} };
+            bs.appendChild(btn); });
+        }
+      } else { ab.style.display="none"; } }
+    var bl=document.getElementById("boardBurn");
+    if(bl){ var b3=j.burnRate; if(b3&&b3.ratePerHour){ bl.style.display=""; bl.innerHTML="🔥 燃尽预测：约 <b>¥"+b3.ratePerHour+"/小时</b> ⇒ 还够 <b>"+b3.hoursLeft+" 小时</b> · 今天预计 ¥"+b3.projectToday; } else { bl.style.display="none"; } }
+    if(location.search.indexOf("mini=1")>=0){ document.querySelectorAll("h1,#modes,#warn,button").forEach(function(e2){ if(e2.id!=="btnStop") e2.style.display="none"; }); }
+  }catch(e){}
+})();
+/* FOOT_RENDER：署名行 = 数据心流 · by:鹏冥月落 · 版本（名字在左 ✓ 蓝色 ✓）*/
+
+try{var __f=document.getElementById("foot"); if(__f&&j&&j.authorship) __f.innerHTML='<span style="color:#4c8dff;font-weight:700;letter-spacing:.5px">数据心流</span> · by:鹏冥月落 · v'+(j.authorship.version||j.authorship.official||'?')+(j.authorship.tampered?" <b style='color:#ff5d5d'>⚠️ 原作者标记被移除</b>":"");}catch(e){}
+
+document.getElementById("clock").textContent=(j.bjTime||"–")+"   "+(j.bjDate||"");
   renderExtras(j);
   if(j.settings){
     if(document.activeElement!==document.getElementById("setOrg"))document.getElementById("setOrg").value=j.settings.orangeBelow;
+    try{ if(!__lastSaved) __lastSaved=j.settings; }catch(e){}
     if(document.activeElement!==document.getElementById("setRed"))document.getElementById("setRed").value=j.settings.redBelow;
-    if(document.activeElement!==document.getElementById("setPort"))document.getElementById("setPort").value=j.settings.streamPort;
-    var si=document.getElementById("setIdle"); if(si&&document.activeElement!==si) si.value=(j.settings&&j.settings.idleGraceSec!=null?j.settings.idleGraceSec:15);
+e=(j.settings&&j.settings.idleGraceSec!=null?j.settings.idleGraceSec:15);
     var spt=document.getElementById("setPhoneTtl"); if(spt&&document.activeElement!==spt) spt.value=(j.settings&&j.settings.phoneTtlSec!=null?j.settings.phoneTtlSec:8);
     var sr=document.getElementById("setRefresh"); if(sr&&document.activeElement!==sr) sr.value=(getRefreshMsB()/1000);
     var sd=document.getElementById("setDaily"); if(sd&&document.activeElement!==sd) sd.value=(j.settings.dailyCostAlert!=null?j.settings.dailyCostAlert:10);
@@ -323,7 +408,18 @@ async function tick(){
 }
 function getRefreshMsB(){var v=null;try{v=Number(localStorage.getItem("dshhb-refresh"))}catch(e){}if(!isFinite(v)||v<500||v>10000)v=1000;return v}
 function armB(){try{clearInterval(window.__hbT)}catch(e){}window.__hbT=setInterval(tick,getRefreshMsB())}
-if(!__sync.done)document.getElementById("syncing").style.display="block";
+(function(){
+  var el=document.getElementById("syncing");
+  if(!el) return;
+  if(__sync.done){ el.style.display="none"; return; }
+  var miss=[]; try{ if(!__sync.host)miss.push("宿主接口"); if(!__sync.bal)miss.push("余额"); if(!__sync.peak)miss.push("峰谷"); }catch(e){}
+  el.style.display="block";
+  el.innerHTML='<div style="font-weight:700;margin-bottom:6px">🔄 正在同步…</div><div style="color:#8b8b93;font-size:12px">等待：'+(miss.join(" / ")||"数据")+'</div><div id="syncEsc" style="color:#6b6b73;font-size:11px;margin-top:6px"></div>';
+  var t0=__sync.t0||(__sync.t0=Date.now());
+  var left=Math.ceil((2500-(Date.now()-t0))/1000);
+  if(left<=0){ __sync.done=true; el.style.display="none"; }   // ★8 秒强制放行：页面照常显示，绝不永久卡住 ✓
+  else { document.getElementById("syncEsc").textContent=left+" 秒后强制显示（部分数据可能暂缺）"; }
+})();
 tick();armB();
 
 // ═══ 新增：峰价提醒 / 7 天花费 / 手机日志 / 时间线 / 外观 ═══
@@ -403,4 +499,42 @@ document.querySelectorAll(".skinb").forEach(function(b){
 var __sf=document.getElementById("setFs");
 if(__sf)__sf.onchange=function(){ var v=Number(this.value); if(!(v>=10&&v<=20))v=12; try{localStorage.setItem("dshhb-fs",String(v))}catch(e){} applySkin(); };
 applySkin();
+/* BTN_START_WIDGET：串流页里把挂件重新起回来（用户要求 ✓）*/
+(function(){
+  try{
+    var b=document.getElementById("btnStartWidget");
+    if(!b) return;
+    b.onclick=function(){
+      var msg=document.getElementById("boardDumpMsg")||document.getElementById("boardSayMsg");
+      b.disabled=true; if(msg) msg.textContent="正在把模式切到「两者都开」…";
+      try{
+        fetch(API+"/mode?mode=both",{method:"POST"}).then(function(){
+          if(msg) msg.innerHTML='✅ 已切到「两者都开」—— <b>回到 DSH 页面，点 doctor 的 ♻️ 重载页面</b>（挂件立刻回来 ✓）';
+          try{ fetch(API+"/todo",{method:"POST",headers:{"content-type":"application/json"},
+                body:JSON.stringify({items:["小窗已请求重启：请在 DSH 页面重载"],note:"来自串流页"})}); }catch(e){}
+          b.disabled=false;
+        }).catch(function(e){ if(msg) msg.textContent="❌ "+((e&&e.message)||e); b.disabled=false; });
+      }catch(e){ if(msg) msg.textContent="❌ "+((e&&e.message)||e); b.disabled=false; }
+    };
+  }catch(e){}
+})();
+/* BTN_BACKUP：备份/回档（用户手动 ✓ AI 也能用接口 ✓）*/
+(function(){try{
+  var bk=document.getElementById("btnBackup"), rs=document.getElementById("btnRestore");
+  var msg=function(t){ var m=document.getElementById("boardDumpMsg")||document.getElementById("boardSayMsg"); if(m) m.textContent=t; };
+  if(bk) bk.onclick=function(){ msg("备份中…");
+    fetch(API+"/backup?reason="+encodeURIComponent("手动备份")+"&by="+encodeURIComponent("串流页"),{method:"POST"}).then(function(r){return r.json()}).then(function(j){
+      msg(j&&j.ok?("✅ 已备份："+j.name+"（"+j.files+" 个文件 ✓）"):("❌ "+((j&&j.error)||"失败"))); }).catch(function(e){msg("❌ "+e.message)}); };
+  if(rs) rs.onclick=function(){
+    fetch(API+"/backups").then(function(r){return r.json()}).then(function(j){
+      var it=(j&&j.items)||[]; if(!it.length){msg("❌ 还没有任何备份");return;}
+      if(!confirm("确定回档到最近备份："+it[0].name+" ？（回档前会自动再备份一次 ✓）")){msg("已取消");return;}
+      msg("回档中…");
+      fetch(API+"/restore?name="+encodeURIComponent(it[0].name),{method:"POST"}).then(function(r){return r.json()}).then(function(x2){
+        msg(x2&&x2.ok?("✅ 已回档："+it[0].name+"（恢复 "+x2.restored.length+" 个文件 ✓ 刷新页面生效 ✓）"):("❌ "+((x2&&x2.error)||"失败")));
+      }).catch(function(e){msg("❌ "+e.message)});
+    }).catch(function(e){msg("❌ "+e.message)}); };
+}catch(e){}})();
+
+
 </script></body></html>

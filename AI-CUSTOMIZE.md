@@ -238,7 +238,7 @@ node --check lib/widget.js                                     # 语法自检
 6. 新增/修改 `extras/` 脚本后，记得同步 `extras/install.sh` 的拷贝清单与 `extras/README.md`；改完说明片段要重跑 `extras/agents-sync.sh` 让别人工作区的 `AGENTS.md` 更新。
 7. 状态目录解析规则（`core.cjs` 的 `resolveWorkdir` 与 `extras/` 里所有脚本）必须保持一致。
 
-### 1.3.0 新增的 state 字段
+### 1.4.0 新增的 state 字段
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
@@ -258,7 +258,7 @@ node --check lib/widget.js                                     # 语法自检
 
 ⚠️ 改了 `core.cjs` 的 `PAGE_VERSION` 就要同步改 `board.html` 顶部的 `var V=`，否则串流页会无限刷新。
 
-### 1.3.0 新增的设置键
+### 1.4.0 新增的设置键
 
 | 键 | 默认 | 含义 |
 |---|---|---|
@@ -266,6 +266,7 @@ node --check lib/widget.js                                     # 语法自检
 | `showPhoneLog` | `true` | 📱 手机操控日志（挂件与串流页的「最近操作」卡片）|
 | `showTimeline` | `true` | 💓 心跳时间线（最近 12 步 + 每步耗时）|
 | `showPauseNote` | **`false`** | ⏸ 暂停备注（面板里的备注输入框 + 「带备注暂停」按钮）|
+| `showEcg` | `true` | 💓 大窗心电图：网格背景 + 每次轮询三色折线跳一下，获取失败跳红 |
 | `showCost` | `true` | 💸 最近 7 天花费 + 月度预算卡片 |
 | `posCheckMin` | `1` | 挂件位置自检间隔（分钟，1~10），不合理自动校准回默认位置 |
 | `quickBar` | **`false`** | 🧲 **设置外显**：在挂件胶囊下面多出一条快捷设置条（⏸ ⛔ 🔥 📱 💓 💸 ⚙），不用展开面板就能改这些开关 |
@@ -360,3 +361,131 @@ node --check lib/widget.js                                     # 语法自检
 
 **可写接口**（改动类，注意后果）：`POST /pause?note=` ✓ `POST /pause/clear` ✓ `POST /interrupt` ✓ `POST /interrupt/clear` ✓
 `POST /settings?键=值` ✓ `POST /restart` ✓（重启挂件 ✓）
+
+---
+
+# 💓 心跳可视化（大窗里的心电图）—— 参数随便调，底层别乱动
+
+**位置**：`lib/widget.js` 里搜 `心跳可视化`（整块约 90 行，从 `// ── 💓 心跳可视化` 到 `// ── 位置自检`）
+
+## ✅ 这些数据随便改（改完不影响逻辑，随便折腾）
+
+| 参数 | 默认 | 含义 / 怎么玩 |
+|---|---|---|
+| `ECG_W` | `268` | 画布宽（px）✓ 想更宽就加大 ✓ |
+| `ECG_H` | `120` | 画布高（px）✓ **车道高度 = ECG_H ÷ 车道数** ✓ 加车道记得一起加高 ✓ |
+| `ECG_FRAME_MS` | `60` | 每帧间隔（ms）✓ 越小越顺滑但越费电 ✓ 建议 40~200 ✓ |
+| `ECG_LANES` | 3 条 | **车道数组** ✓ 想加就 push 一条 `{ color:'#xxx', label:'名字', buf:[], spike:0 }` ✓ 想删就删 ✓ |
+| `color` | `#3ddc84`/`#4c8dff`/`#ff9f0a` | 每条线的颜色 ✓ 随便换 ✓ |
+| `label` | `余额`/`上下文`/`今日花费` | 每条线的名字（画在车道左上 + 底部图例 ✓）|
+| `0.84` | 尖峰衰减系数 | 越大尖峰留得越久（越大越"胖" ✓）|
+| `(LANE_H - 15)` | 尖峰高度 | 数字越大跳得越高 ✓（别超过 LANE_H 否则出界 ✓）|
+| 网格 `8` / `40` | 小格 / 大格 | 网格密度 ✓ 想更密就改小 ✓ |
+| `4000` | 失败判定（ms） | 超过这么久没有成功刷新 ⇒ 底色转**淡红** ✓ |
+| `1600` | 兜底心跳（ms） | 这段时间没有真实心跳就自己补一下（别看着像死的 ✓）|
+| `ecgFail = 90` | 强制红灯帧数 | 想手动闪一下红灯就设它 ✓ |
+| `'#061108'` / `'#ffd9dc'` | 正常底色 / **失败淡红** | 底色 ✓（用户指定失败必须是**淡红** ✓）|
+| `ecgBeat(n)` | 打点 | `ecgBeat(0/1/2)` 指定车道 ✓ 不传=轮换 ✓ |
+
+**想换数据源** ✓：在 `tick()` 里找 `ecgBeat(ecgOKn % 3)` ✓ 改成 `ecgBeat(j.balance ? 0 : 1)` 这类你自己的规则 ✓
+
+## ⛔ 这些底层不要动（动了容易崩）
+
+| 不许动 | 为什么 |
+|---|---|
+| `ecgEnsure()` 的**自愈结构**（每 0.5 秒查画布在不在/尺寸对不对/循环起没起） | 拆了它 ⇒ 面板重建或时序错位后**整块变空白** ✗（这坑我们踩过）|
+| `while (L.buf.length > ECG_W) L.buf.shift();` | 拆了它 ⇒ 缓冲**无限增长** ⇒ 内存一直涨 ✗（用户明确要求必须清旧记录）|
+| `if (!open) return;` / `document.hidden` | 拆了它 ⇒ 大窗关着也在**空转绘制**，白烧算力与电 ✗ |
+| `window.__dshhbEcg` 自证接口 | 拆了 doctor 就没法回报"帧/心跳/画布尺寸" ⇒ 出问题只能靠猜 ✗ |
+| `ECG_LANES[i].buf` 的 **push + 定长裁剪** 配对 | 只 push 不裁剪 = 内存泄漏 ✗ |
+
+---
+
+# 💾 改之前先备份（硬性要求，2026-10-06 立）
+
+**你是 AI、要改这个插件的话，动手前先备份当前可用状态：**
+
+```bash
+curl -X POST "http://127.0.0.1:3080/api/heartbeat/backup?reason=改之前&by=你的名字"
+```
+- 备份内容：`lib/` 全部源码 + 设置/模式/暂停/中断/基线 等关键状态 + `manifest.json` 清单 ✓
+- 存放位置：`<状态目录>/backups/<时间>__<原因>/` ✓ **只保留最近 20 份** ✓（自动清理 ✓）
+- 查看：`curl http://127.0.0.1:3080/api/heartbeat/backups` ✓
+
+**遇到完全解决不了的大问题 ⇒ 一键回档**（回档前会自动再备份一次"回档前状态" ✓）：
+```bash
+curl -X POST "http://127.0.0.1:3080/api/heartbeat/restore?name=<备份名>"
+```
+
+**用户也能手动**：挂件 / 串流页上都有 **「💾 备份当前状态」** 与 **「↩ 回档到最近备份」** 按钮 ✓
+
+**另外两条铁律** ✓：
+1. **改 `lib/` 之前一定先 `backup`** ✓（改坏了能回来 ✓）
+2. **设置保存是"只发改动项 + 服务端幂等跳过"** ✓ —— 不要写"整表覆盖"式的保存 ✗
+   （历史上就因为整表回灌，把用户改好的值又写回了旧值 ✗）
+
+## 备查：操作监听与自动备份（2026-10-06）
+
+- **操作监听（只读，默认开 ✓）**：挂件与串流页上**所有开关/按钮/选择**的动作都会记一笔
+  （`GET /api/heartbeat/ui` 读 ✓；只记控件名与开关状态，**不记输入框内容** ✓；关掉即停 ✓；只留 500 条 ✓）
+- **自动备份**：**每天首次加载 + 每小时检查**，当天没备过就自动备一份 ✓（`reason=auto-daily-<日期>` ✓）
+- **手动备份**：挂件与串流页都有 **「💾 备份当前状态 / ↩ 回档最近备份」** ✓ 或 `POST /api/heartbeat/backup` ✓
+- **保留**：最近 **20** 份 ✓ 自动清理 ✓
+
+---
+
+# 🕐 时钟接口（正式 ✓ 2026-10-07 立）
+
+**为什么有它**：DSH 宿主跑在容器里，**有些环境（非官方移植/精简镜像）容器时钟不准** ⇒
+所有"按天"的逻辑（每日日报、7 天花费、月度预算、节假日/峰谷判定）都会错位 ✗。
+**默认完全透明**：`offsetMin = 0` 时一行都不影响计算 ✓（谁都不受影响 ✓）。
+
+```bash
+GET  /api/heartbeat/clock                     # 读：{offsetMin, rawUtc, nowUtc, nowBj, bjDate, transparent, file}
+POST /api/heartbeat/clock?offsetMin=-720      # 直接设（范围 ±1440 分钟，超出拒绝 ✓ 防手滑）
+POST /api/heartbeat/clock?ref=2026-10-07%2001:30   # ★反算：告诉它"现在真实是几点"，它自己算偏移 ✓
+```
+- 语义：`nowBj` = **(容器时钟 + offsetMin) + 8h** ✓；`bjDate` = 当前"北京日"（日报/花费/节假日都用它 ✓）
+- `transparent: true` ⇒ 偏移为 0、行为与"没有这个功能"**完全一致** ✓
+- 落盘：状态目录 `.dsh-clock-offset.json` ✓（也对应设置键 `clockOffsetMin` ✓）
+- **注意**：判断"容器时钟准不准"**必须用可信时间源**（用户直接告诉你 / 手机状态栏 ✓），
+  **不要拿旧截图或旧日志里的时间当"现在"** ✗（2026-10-07 我犯过这个错 ✗ 误判 12 小时 ✗）
+
+---
+
+# 📡 接口总表（2026-10-07 快照）
+
+| 类别 | 接口 | 说明 |
+|---|---|---|
+| 只读数据 | `GET /api/heartbeat/state` | 全量状态（前端与 AI 都读它 ✓）|
+| **AI 只读口** | `GET /api/heartbeat/ai` | **受 `aiRead` 设置管控**（默认关 ✓）；含 balance/band/working/today/dailyReport/badges/clock/backups ✓ |
+| 设置 | `GET/POST /api/heartbeat/settings?键=值` | **只发改动项**；服务端**幂等跳过**（值相同返回 `skipped:true` ✓ 不写盘 ✓）|
+| 操作监听 | `POST /api/heartbeat/ui?k=&n=&v=` · `GET /ui` | 默认开（`uiMonitor`）；只记控件名与开关态 ✓ **不记输入框内容** ✓ |
+| 备份 | `POST /backup?reason=&by=` · `GET /backups` · `POST /restore?name=` | 回档前**自动再备一次** ✓ 只留最近 20 份 ✓ |
+| **心流刷新** | `POST /api/heartbeat/flow/refresh` | 重算日报+徽章（**打开大窗时触发** ✓ 不在 tick 里算 ✓）|
+| **时钟** | `GET/POST /api/heartbeat/clock` | 见上一节 ✓ |
+| **预算门** | `GET /api/heartbeat/budget?est=<元>&kind=<说明>` | **纯本地算术 ✓ 零外部调用**；返回 `{level: ok/warn/deny, ratio, advice}`；**默认关**（`showBudgetGuard` ✓ 关着直接 `enabled:false` ✓ 零开销 ⇒ **不烧 token** ✓）|
+| **回放** | `GET /api/heartbeat/replay?n=50` | 花费+手机操控+步骤 合成倒序时间线 ✓ **纯本地拼装 ✓ 零网络**；**默认关**（`showReplay` ✓）|
+| **设置便携** | `GET /settings/export` · `POST /settings/import?json=<urlencoded>` | 一键搬配置 ✓ 导入**只认已知键** ✓ 返回 `ignored` 列表 ✓ |
+| 诊断 | `POST /restart` · `GET /doctor` · `POST /dump` · `GET /dumps` · `GET /ferr` · `GET /selfcheck` | — |
+| 闸门 | `POST /pause` `/pause/clear` `/interrupt` `/interrupt/clear` | **暂停 > 接管 > 正常**（不可弱化 ✓）|
+| 其它 | `/say` `/inbox` `/todo` `/ask` `/answer` `/focus` `/mode` `/stream` | 留言/待办/提问/聚焦/模式 ✓ |
+
+**改完必跑**：`node _tools/preflight.cjs`（14 项：语法 ×5 · PAGE_VERSION==board V · SELF_VER · 状态文件 JSON ·
+官方凭据 · 无私钥 · DOM ok+fail · **手册托管块完整** · snippet 同源 ✓）
+
+---
+
+# 🧭 今日（2026-10-06~07）新增的设置键
+
+| 键 | 默认 | 说明 |
+|---|---|---|
+| `showFlow` | **`false`** | 📊 心流日报与徽章（**派生估算** ✓ 用户偏好精确数据 ⇒ **默认关** ✓ 关着连计算都跳过 ✓）|
+| `uiMonitor` | **`true`** | 👁 操作监听（记录页面上的开关/按钮动作 ✓ **不记输入内容** ✓ 关掉即停 ✓）|
+| `clockOffsetMin` | `0` | 🕐 时钟偏移（分钟 ✓ 见时钟接口一节 ✓）|
+| `showBudgetGuard` | **`false`** | 🛡 预算门（**默认关** ✓ 关着零开销 ✓ 纯本地 ✓ 不烧 token ✓）|
+| `showReplay` | **`false`** | 🎞 花费/操控回放（**默认关** ✓ 纯本地 ✓）|
+| `showEcg` | `true` | 💓 心跳可视化（P-QRS-T ✓ 只在数据变化时打点 + 2.8 秒兜底 ✓ 关窗自动暂停 ✓）|
+
+> **行为改动备忘**：边缘闪烁现为**常驻**（只有手动点余额提醒栏才停 ✓）；
+> 轮询**自适应**（工作中按用户设置、默认 1 秒 / 空闲 3~5 秒 ✓ 状态一变立刻重排 ✓）。
