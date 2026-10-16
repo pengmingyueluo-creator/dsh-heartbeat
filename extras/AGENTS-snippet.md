@@ -123,6 +123,12 @@ bash "__WORKDIR__/phone-done"
 - **边缘闪烁改为常驻**：橙/红区**一直闪**，**只有手动点一下余额提醒栏才停**（不再"闪 3 下就停"）
 - **设置保存去重**：只发**真正改动过的字段** + 服务端幂等跳过（值相同直接 `skipped:true` 不写文件）
 - **写入监控**：任何设置写入都会记到 `.dsh-settings-writes.jsonl`（含调用栈 ⇒ 便于抓"谁改了设置"）
+- **🩺 自检信号（改完模块必抛 ✓）**：`node _tools/selfcheck-signal.cjs 名字 说明`（或 POST `/api/heartbeat/signal` / 控制台 `__dshhbSignal()`）⇒ ≤15 秒内自动自检一次 ✓ · 周期自检默认 **10 分钟**（设置项 `selfCheckMin` 0=关 5~30 ✓）· 手动：`__dshhbProbe()` / `__dshhbCheck()` ✓
+- **🛡 保守运行（默认关 ✓）**：核心模块坏⇒必停+抛诊断页 ✗；功能模块坏⇒默认跳过并提醒 ✓；开着则任意模块坏都停 ✓；模块被改过⇒先跑能力探针 ✓（实现：`70-tail-and-crash.js` 的 `hbProbe/hbFail/hbDiagPanel` ✓ 新功能块必须包 `try/catch + hbFail('feature',…)` ✓）
+- **👁 外显统一（`uiMode`）**：设置面板顶部「外显总控」= `custom`(默认 ✓ 各开关自定) / `full`(全显) / `minimal`(只留核心 ✓) ⇒ 权威在 `core` 的 `state.ui`，前端经 `UI_SHIM` 垫片统一生效 ✓ 想改界面显示多少先看 `AI-CUSTOMIZE.md` 的外显总表 ✓
+- **📐 拆分决策**：`widget.js` 拆 8 模块 ✓；`core.cjs` **不拆**（大闭包 ⇒ 归单模块 `_build/msrc-core/00-core.js` ✓）；`board.html`/`index.js` **不拆**（缠在一起，拆了风险大 ✗）⇒ 改前先看 `AI-CUSTOMIZE.md` 的「拆分决策表」✓
+- **🛑 统筹文件 `_build/build-widget.cjs` 谁都不能动**（改它=整个挂件崩 ✗）· 只改 `_build/msrc/*.js` 子模块 · 改完跑 `node _tools/validate-orchestrator.cjs`（独立校验线 ✓ 被改坏会自动用 `_build/.master/` 备份覆盖 ✓ 备份也跑不通就弹【统筹文件崩溃】小窗 ✓）
+- **🧩 模块化改造流水线**：`lib/widget.js` 由 `_build/msrc/*.js` 八模块拼成（`node _build/build-widget.cjs` 拼回 ✓ 逐字节验收 ✓）· 改前端必须改模块+构建+跑 `_tools/audit-switches.cjs`（4 类开关 bug ✓）
 - **🕐 时钟接口（正式 ✓）**：`GET/POST /api/heartbeat/clock`（读 / 设 `offsetMin`±1440 分钟 / `?ref=北京时间` 反算）⇒ 默认 `0` **完全透明** ✓ 容器时钟不准时才用 ✓
 - **🛡 预算门（默认关 ✓）**：`GET /api/heartbeat/budget?est=<元>` ⇒ `ok/warn/deny` ✓ **纯本地算术、零外部调用** ✓ 关着零开销 ✓
 - **🎞 回放（默认关 ✓）**：`GET /api/heartbeat/replay?n=50` ⇒ 花费+手机操控时间线 ✓ 纯本地 ✓

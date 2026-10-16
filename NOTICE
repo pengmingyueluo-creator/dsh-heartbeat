@@ -1,0 +1,14 @@
+数据心流（dsh-heartbeat）
+
+Copyright (c) 2026 鹏冥月落 (ZERO—鹏冥月落)
+Author: 鹏冥月落 (ZERO—鹏冥月落)
+Repository: https://github.com/pengmingyueluo-creator/dsh-heartbeat
+License: MIT (see LICENSE)
+
+署名标识（请保留，至少保证可从源码/产物中读出）：
+  · 插件界面署名行： 数据心流 · by:鹏冥月落 · v<版本>（<自改次数>）
+  · 源码/凭据：       lib/.dshhe-art.json（ES256 官方凭据）· package.json 的 author 字段
+  · 文档：           README.md / AI-CUSTOMIZE.md / NOTICE（本文件）
+
+允许二次修改与二次发布；可并列添加二改者署名，但不得覆写、删除或隐藏原作者署名。
+详见 README.md 的「用户协议」一节。

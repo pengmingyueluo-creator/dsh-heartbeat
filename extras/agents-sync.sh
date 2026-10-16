@@ -35,3 +35,8 @@ node -e '
   fs.writeFileSync(md, cur);
   console.log("   位置：" + md);
 ' "$SNIP" "$MD" "$WORKDIR"
+
+# ── 同时把 AI 硬性规定落到工作区（AI 每会话都会读手册）──
+_rules="$(cd "$(dirname "$0")" && pwd)/AI-RULES.md"
+[ -f "$_rules" ] && [ -d "$WORKDIR" ] && cp -f "$_rules" "$WORKDIR/AI-RULES-dsh-heartbeat.md" 2>/dev/null \
+  && echo "→ AI 规定已写入: $WORKDIR/AI-RULES-dsh-heartbeat.md"

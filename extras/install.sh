@@ -9,7 +9,9 @@ PKG="$(cd "$(dirname "$0")/.." && pwd)"
 DSH_HOME="${DSH_HOME:-$HOME/.dsh}"
 WORKDIR="${DSH_HEARTBEAT_DIR:-}"
 if [ -z "$WORKDIR" ]; then   # 与插件 core.cjs 的 resolveWorkdir 同规则
-  if [ -f "/sdcard/123云盘/ds工作区/.dsh-heartbeat.json" ]; then WORKDIR="/sdcard/123云盘/ds工作区"
+  # 工作目录：环境变量优先 ⇒ 插件包旁 ⇒ DSH_HOME/heartbeat（可移植，2026-10-16）
+  if [ -n "$DSH_HEARTBEAT_DIR" ]; then WORKDIR="$DSH_HEARTBEAT_DIR"
+  elif [ -f "$(dirname "$0")/../../.dsh-heartbeat.json" ]; then WORKDIR="$(cd "$(dirname "$0")/../.." && pwd)"
   else WORKDIR="$DSH_HOME/heartbeat"; fi
 fi
 echo "包目录 : $PKG"
@@ -67,3 +69,13 @@ cat <<TIP
 
   自定义挂件：看 AI-CUSTOMIZE.md（专为"让 AI 帮你改"写的）
 TIP
+
+# ── AI_RULES_STEP：把「AI 硬性规定」写进使用者的工作区（安装即生效，不靠 AI 自己记）──
+if [ -f "$(dirname "$0")/AI-RULES.md" ] && [ -d "$WORKDIR" ]; then
+  cp -f "$(dirname "$0")/AI-RULES.md" "$WORKDIR/AI-RULES-dsh-heartbeat.md" 2>/dev/null \
+    && echo "→ AI 硬性规定已写入: $WORKDIR/AI-RULES-dsh-heartbeat.md"
+  if [ -f "$(dirname "$0")/agents-sync.sh" ]; then
+    bash "$(dirname "$0")/agents-sync.sh" "$WORKDIR" >/dev/null 2>&1 \
+      && echo "→ 已同步进工作区手册（AI 每会话必读）"
+  fi
+fi

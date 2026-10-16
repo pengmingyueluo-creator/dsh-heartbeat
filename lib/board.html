@@ -79,6 +79,18 @@ body.light input{background:#fff!important;color:#1c1c1f!important;border-color:
 <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><span style="color:#8b8b93;flex:1">手机横幅(秒)</span><input id="setPhoneTtl" inputmode="decimal" style="width:64px;background:#141417;color:#e8e8ea;border:1px solid #2b2b31;border-radius:4px;padding:3px 5px" placeholder="8"></div>
 <span style="color:#8b8b93;flex:1">刷新间隔(秒)</span><input id="setRefresh" inputmode="decimal" style="width:64px;background:#141417;color:#e8e8ea;border:1px solid #2b2b31;border-radius:4px;padding:3px 5px" placeholder="1"></div>
   <span style="color:#8b8b93;flex:1">余额提醒常驻</span><input id="setBal" type="checkbox" style="width:16px;height:16px"></div>
+  <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">
+    <span style="color:#8b8b93;flex:1">外显总控</span>
+    <select id="setUiMode" style="width:96px;background:#141417;color:#e8e8ea;border:1px solid #2b2b31;border-radius:4px;padding:2px 4px">
+      <option value="custom">自定义</option><option value="full">全显示</option><option value="minimal">极简</option></select></div>
+  <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">
+    <span style="color:#8b8b93;flex:1">保守运行</span>
+    <input id="setStrict" type="checkbox" style="width:16px;height:16px"></div>
+  <div style="color:#6b6b73;font-size:9px;margin:-2px 0 5px 2px;line-height:1.35">保守运行开：任意模块出错就停止并抛诊断页；关（默认）：核心错必停，功能错则跳过并提醒。</div>
+  <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">
+    <span style="color:#8b8b93;flex:1">自检间隔(分)</span>
+    <input id="setSelfChk" inputmode="decimal" style="width:64px;background:#141417;color:#e8e8ea;border:1px solid #2b2b31;border-radius:4px;padding:3px 5px" placeholder="10"></div>
+  <div style="color:#6b6b73;font-size:9px;margin:-2px 0 5px 2px;line-height:1.35">默认 10 分钟自检一次，填 0 = 关闭，有效 5~30。</div>
   <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><span style="color:#8b8b93;flex:1">日耗提醒 &gt;</span><input id="setDaily" inputmode="decimal" style="width:64px;background:#141417;color:#e8e8ea;border:1px solid #2b2b31;border-radius:4px;padding:3px 5px"></div>
   <button id="setSave" style="width:100%;background:#1c1c1f;color:#b9b9c0;border:1px solid #2b2b31;border-radius:5px;padding:5px">保存设置</button>
   <div id="setMsg" style="color:#3ddc84;font-size:11px;margin-top:4px"></div>
@@ -166,7 +178,7 @@ body.light input{background:#fff!important;color:#1c1c1f!important;border-color:
 
 (function(){try{ if(!localStorage.getItem('dshhb-refresh')){ var __s=sessionStorage.getItem('dshhb-refresh'); if(__s) localStorage.setItem('dshhb-refresh',__s); } }catch(e){}})();
 
-var V=35, API=window.__HB_API||'/api/heartbeat', TOKEN=window.__HB_TOKEN||'';
+var V=41, API=window.__HB_API||'/api/heartbeat', TOKEN=window.__HB_TOKEN||'';
 
 // ── 统一带超时的请求（串流页维护 ✓）：以前没有超时 ⇒ 接口一挂就永远卡在"正在同步" ✗
 function tfetch(url, opts, ms) {
@@ -215,6 +227,7 @@ document.getElementById("setSave").onclick=async function(){
       if(!same){ out[k2]=a; n++; } }
     return {diff:out,n:n};
   }
+  try{ window.__hbRefillOK=Date.now(); }catch(e){}
   var __d=__diffOnly();
   if(__d.n===0){ var sm=document.getElementById("setMsg"); if(sm) sm.textContent="无改动，跳过保存（等同于没改 ✓）"; setTimeout(function(){try{document.getElementById("setMsg").textContent=""}catch(e){}},3000); tick(); return; }
 
@@ -222,6 +235,9 @@ document.getElementById("setSave").onclick=async function(){
   var q="orangeBelow="+encodeURIComponent(document.getElementById("setOrg").value)+
         "&redBelow="+encodeURIComponent(document.getElementById("setRed").value)+
         "&balanceAlert="+(document.getElementById("setBal").checked?"1":"0")+
+        "&uiMode="+encodeURIComponent((document.getElementById("setUiMode")||{}).value||"custom")+
+        "&strictRun="+((document.getElementById("setStrict")||{}).checked?"1":"0")+
+        "&selfCheckMin="+encodeURIComponent(String((document.getElementById("setSelfChk")||{}).value||"10"))+
         "&dailyCostAlert="+encodeURIComponent(document.getElementById("setDaily").value||"10")+
         "&idleGraceSec="+encodeURIComponent(document.getElementById("setIdle").value||"15")+
         "&phoneTtlSec="+encodeURIComponent(document.getElementById("setPhoneTtl").value||"8");
@@ -238,7 +254,8 @@ document.getElementById("setSave").onclick=async function(){
     try{localStorage.setItem("dshhb-refresh",String(Math.round(rs2*1000)))}catch(e){}
     armB();
     try{__lastSaved=__formAll();}catch(e){}
-    document.getElementById("setMsg").textContent="已保存（独立端口 "+(j.streamPortActual||0)+"）";
+    try{ window.__hbRefillOK=Date.now(); }catch(e){}
+  document.getElementById("setMsg").textContent="已保存（独立端口 "+(j.streamPortActual||0)+"）";
     setTimeout(function(){document.getElementById("setMsg").textContent=""},3000);}catch(e){document.getElementById("setMsg").textContent="保存失败";}
   tick();
 };
@@ -263,6 +280,8 @@ async function tick(){
   var r=await tfetch(u("/state"),{cache:"no-store"});
   if(r.status===401){ if(TOKEN){location.reload();} else {document.getElementById("steptext").textContent="未通过鉴权（浏览器里请先登录 DSH）";} return; }
   var j=await r.json();
+
+  try { window.__hbLast = j; } catch (e) {}
         /* ST_DATA_OK */ try{ __sync.done=true; var __sy=document.getElementById('syncing'); if(__sy) __sy.style.display='none'; try{sessionStorage.setItem('dshhb-synced',String(Date.now()))}catch(e){} }catch(e){} if(!j.today){var tf2=await todayFB(); if(tf2) j.today=tf2;}
   if(j.v!==undefined&&j.v>V){location.replace(location.pathname+"?v="+V);return;}
   document.querySelectorAll("#modes button").forEach(function(b){b.className=(b.getAttribute("data-m")===j.mode)?"on":""});
@@ -344,14 +363,22 @@ try{var __f=document.getElementById("foot"); if(__f&&j&&j.authorship) __f.innerH
 document.getElementById("clock").textContent=(j.bjTime||"–")+"   "+(j.bjDate||"");
   renderExtras(j);
   if(j.settings){
+    /* BOARD_UI_SHIM：外显统一（state.ui 覆盖 settings.show* ✓）*/
+
+    try { if (j && j.ui) { var __um={peak:'showPeak',phoneLog:'showPhoneLog',timeline:'showTimeline',cost:'showCost',ecg:'showEcg',flow:'showFlow',viz:'viz',ctxBar:'ctxBar'}; j.settings=j.settings||{}; for (var __uk in __um) { if (j.ui[__uk]!==undefined) j.settings[__um[__uk]]=!!j.ui[__uk]; } } } catch(e) {}
+
     if(document.activeElement!==document.getElementById("setOrg"))document.getElementById("setOrg").value=j.settings.orangeBelow;
     try{ if(!__lastSaved) __lastSaved=j.settings; }catch(e){}
     if(document.activeElement!==document.getElementById("setRed"))document.getElementById("setRed").value=j.settings.redBelow;
 e=(j.settings&&j.settings.idleGraceSec!=null?j.settings.idleGraceSec:15);
-    var spt=document.getElementById("setPhoneTtl"); if(spt&&document.activeElement!==spt) spt.value=(j.settings&&j.settings.phoneTtlSec!=null?j.settings.phoneTtlSec:8);
+    var __rf2=(Date.now()-(window.__hbRefillOK||0)<3000);   // ★只放行 3 秒（面板打开/保存后 ✓）
+    var spt=document.getElementById("setPhoneTtl"); if(spt&&__rf2&&document.activeElement!==spt) spt.value=(j.settings&&j.settings.phoneTtlSec!=null?j.settings.phoneTtlSec:8);
     var sr=document.getElementById("setRefresh"); if(sr&&document.activeElement!==sr) sr.value=(getRefreshMsB()/1000);
-    var sd=document.getElementById("setDaily"); if(sd&&document.activeElement!==sd) sd.value=(j.settings.dailyCostAlert!=null?j.settings.dailyCostAlert:10);
-    var cb2=document.getElementById("setBal"); if(cb2&&document.activeElement!==cb2) cb2.checked=(j.settings.balanceAlert!==false);
+    var sd=document.getElementById("setDaily"); if(sd&&__rf2&&document.activeElement!==sd) sd.value=(j.settings.dailyCostAlert!=null?j.settings.dailyCostAlert:10);
+    var cb2=document.getElementById("setBal"); if(cb2&&__rf2) cb2.checked=(j.settings.balanceAlert!==false);
+    var su=document.getElementById("setUiMode"); if(su&&__rf2&&document.activeElement!==su) su.value=String((j&&j.settings&&j.settings.uiMode)||"custom");
+    var ss=document.getElementById("setStrict"); if(ss&&__rf2) ss.checked=!!(j&&j.settings&&j.settings.strictRun);
+    var sc3=document.getElementById("setSelfChk"); if(sc3&&__rf2&&document.activeElement!==sc3) sc3.value=String((j&&j.settings&&j.settings.selfCheckMin!=null?j.settings.selfCheckMin:10));
     document.getElementById("portHint").textContent="0=跟随 DSH 端口；auto=自动找空闲端口"+(j.streamPortActual?("（当前独立监听 "+j.streamPortActual+"）"):"");
   }
   // 功能开关：控制各卡片显隐 + 回填勾选
@@ -537,4 +564,102 @@ applySkin();
 }catch(e){}})();
 
 
+
+/* ── BOARD_SELFCHECK：串流页的运行时自检 + 诊断页（与挂件同规格 ✓ 2026-10-16）──
+   ① 收到自检信号（其他 AI 改完模块抛的）⇒ 立刻自检
+   ② 周期自检：每 selfCheckMin 分钟（0=关闭 ✓ 默认 10 ✓）
+   ③ 核心/功能规则：核心坏⇒必停+红框诊断页；功能坏⇒默认跳过+橙框提醒；保守运行开⇒任意坏都停
+   自测：网页控制台 __hbCheck() / __hbFail('core'|'feature','名字',new Error('故意'))            */
+window.__hbHealth = window.__hbHealth || { core: {}, feature: {} };
+function __hbFail(kind, name, err) {
+  try {
+    var h = window.__hbHealth, slot = (kind === 'core' ? 'core' : 'feature');
+    if (h[slot][name]) return;
+    h[slot][name] = String((err && err.message) || err || '').slice(0, 110);
+    var strict = !!(window.__hbLast && window.__hbLast.settings && window.__hbLast.settings.strictRun);
+    var stop = (kind === 'core') || strict;
+    try { fetch(API + '/health?kind=' + encodeURIComponent(kind) + '&module=' + encodeURIComponent(name) + '&reason=' + encodeURIComponent(h[slot][name]) + '&source=board', { method: 'POST' }); } catch (e4) {}   /* BOARD_HEALTH_LOG ✓ */
+    __hbPanel(kind, name, h[slot][name], stop);
+  } catch (e) {}
+}
+function __hbPanel(kind, name, msg, stopped) {
+  try {
+    var id = 'hb-diag', el = document.getElementById(id);
+    if (!el) { el = document.createElement('div'); el.id = id;
+      el.setAttribute('style', 'position:fixed;left:8px;right:8px;bottom:8px;z-index:2147483646;background:#130d0d;border:2px solid ' + (kind === 'core' ? '#ff3b30' : '#ff9f0a') + ';border-radius:10px;padding:10px 12px;color:#ffd9dc;font:12px/1.5 ui-monospace,Menlo,monospace;box-shadow:0 6px 24px rgba(0,0,0,.6)');
+      (document.body || document.documentElement).appendChild(el); }
+    var h = window.__hbHealth;
+    var coreL = Object.keys(h.core).map(function (k) { return '<span style="color:#ff5d5d">✗ ' + k + '：' + h.core[k] + '</span>'; }).join('<br>') || '<span style="color:#3ddc84">核心正常</span>';
+    var featL = Object.keys(h.feature).map(function (k) { return '<span style="color:#ff9f0a">⏭ ' + k + '：已跳过（' + h.feature[k] + '）</span>'; }).join('<br>') || '<span style="color:#3b8">功能无异常</span>';
+    el.innerHTML = '<div style="font-weight:700;font-size:13px;color:' + (kind === 'core' ? '#ff5d5d' : '#ff9f0a') + '">' + (kind === 'core' ? '🛑 核心故障 —— 已停止' : (stopped ? '🛑 保守运行：功能故障 ⇒ 已停止' : '⚠️ 功能故障 ⇒ 已跳过，继续运行')) + '</div>'
+      + '<div style="margin:5px 0 3px">核心：' + coreL + '</div><div style="margin:3px 0">功能：' + featL + '</div>'
+      + '<div style="margin-top:5px;color:#8b8b93">自检 ' + (window.__hbLastCheck ? new Date(window.__hbLastCheck).toLocaleTimeString('zh-CN') : '?') + ' · 保守运行：' + (!!(window.__hbLast && window.__hbLast.settings && window.__hbLast.settings.strictRun) ? '<b style="color:#ff5d5d">开</b>' : '关') + '</div>'
+      + '<div style="margin-top:6px"><button id="hb-diag-re" style="background:#101b2b;color:#4c8dff;border:1px solid #4c8dff;border-radius:6px;padding:4px 10px;font:11px ui-monospace">🔄 重新自检</button> <button id="hb-diag-cl" style="background:#1c1c1f;color:#8b8b93;border:1px solid #2b2b31;border-radius:6px;padding:4px 10px;font:11px ui-monospace">收起</button></div>';
+    var re = document.getElementById('hb-diag-re'), cl = document.getElementById('hb-diag-cl');
+    if (re && !re.getAttribute('data-b')) { re.setAttribute('data-b', '1'); re.onclick = function () { window.__hbHealth = { core: {}, feature: {} }; __hbCheck('手测'); }; }
+    if (cl && !cl.getAttribute('data-b')) { cl.setAttribute('data-b', '1'); cl.onclick = function () { try { el.parentNode.removeChild(el); } catch (e2) {} }; }
+  } catch (e) {}
+}
+function __hbProbe() {   // 能力探针：串流页的核心控件在不在
+  var need = [['状态数据', window.__hbLast && window.__hbLast.settings], ['设置表单', !!document.getElementById('setBal')], ['模式栏', !!document.querySelector('[onclick*="mode"],#modeBar,.mode')], ['中断键', !!document.querySelector('[onclick*="interrupt"]')]];
+  var bad = []; need.forEach(function (x) { try { if (!x[1]) bad.push(x[0]); } catch (e) { bad.push(x[0]); } });
+  window.__hbHealth.core = {}; bad.forEach(function (n) { window.__hbHealth.core[n] = '探针未通过'; });
+  if (bad.length) __hbFail('core', '能力探针', new Error('缺少：' + bad.join('、')));
+  return bad;
+}
+function __hbSweep() {   // 功能巡检：开着的外显得真渲染出来
+  try {
+    var st = (window.__hbLast && window.__hbLast.settings) || {}, ui = (window.__hbLast && window.__hbLast.ui) || {};
+    var on = function (k) { return ui[k] !== undefined ? !!ui[k] : (st[k] !== false); };
+    if (on('ecg')) { var cv = document.getElementById('hb-ecg') || document.getElementById('ecg'); if (!(cv && cv.width > 10)) __hbFail('feature', 'ecg(心电图)', new Error('画布不存在或尺寸为 0')); }
+    if (on('cost')) { var ca = document.getElementById('hb-cost') || document.getElementById('costCard'); if (!ca) __hbFail('feature', 'cost(花费卡片)', new Error('容器不存在')); }
+  } catch (e) {}
+}
+function __hbCheck(reason) {
+  try { window.__hbLastCheck = Date.now(); console.log('[hb-board] 自检：' + reason); } catch (e) {}
+  __hbProbe(); __hbSweep();
+}
+try { window.__hbCheck = __hbCheck; window.__hbFail = __hbFail; window.__hbProbe = __hbProbe; } catch (e) {}
+try {
+  setInterval(function () {
+    try {
+      if (document.hidden) return;
+      var sc = window.__hbLast && window.__hbLast.selfCheck;
+      var sigAt = (sc && sc.signal && sc.signal.at) || 0, lastSig = window.__hbLastSig || 0;
+      var period = (sc && sc.intervalMin > 0) ? sc.intervalMin * 60000 : 0;
+      if (sigAt > lastSig) { window.__hbLastSig = sigAt; __hbCheck('信号 by ' + ((sc.signal && sc.signal.who) || '?')); return; }
+      if (period > 0 && (Date.now() - (window.__hbLastCheck || Date.now())) >= period) __hbCheck('周期 ' + sc.intervalMin + ' 分钟');
+    } catch (e) {}
+  }, 15000);
+} catch (e) {}
+
+/* ── BOARD_INTRO：安装后首次打开弹一次介绍页（关闭 ⇒ 写文件 ⇒ 此后不弹 ✓）── */
+function __hbIntro(){
+  try{
+    var st = window.__hbLast && window.__hbLast.intro;
+    if(!st || st.seen){ var o=document.getElementById('hb-intro'); if(o&&o.parentNode) o.parentNode.removeChild(o); return; }
+    if(window.__hbIntroShown) return; if(document.getElementById('hb-intro')) return;
+    if(!window.__hbLast || !window.__hbLast.settings) return;   /* BOARD_INTRO_WAIT：等首次 state 到位（插件起起来要时间） */
+    if(!window.__hbIntroStamp) window.__hbIntroStamp=Date.now();
+    if(Date.now()-window.__hbIntroStamp < 3000) return;   /* 再等 3 秒，确保初始化完成 */
+    window.__hbIntroShown = true;
+    var ver = String(st.current || st.version || '');
+    var el=document.createElement('div'); el.id='hb-intro';
+    el.setAttribute('style','position:fixed;inset:0;z-index:2147483647;background:rgba(6,6,8,.78);display:flex;align-items:center;justify-content:center;padding:14px');
+    el.innerHTML='<div style="max-width:520px;width:100%;max-height:86vh;overflow:auto;background:#0f0f13;border:1px solid #2b2b31;border-radius:14px;padding:18px 18px 14px;color:#e8e8ea;font:13px/1.75 -apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 18px 60px rgba(0,0,0,.7)">'
+      +'<div style="font-size:17px;font-weight:700;letter-spacing:.5px;margin-bottom:2px"><span style="color:#4c8dff">'+ver+'</span> <span style="color:#e8e8ea">「数据心流」</span></div>'
+      +'<div style="color:#8b8b93;font-size:12px;margin-bottom:12px">dsh-heartbeat · 首次使用说明</div>'
+      +'<div style="margin-bottom:8px">本插件由 <span style="color:#9ad">deepseek-V41-flash</span> 辅助编写</div>'
+      +'<div style="margin-bottom:8px">主要解决了在您打开其他软件时，无法观测到 AI 的状态情况以及无法实时接管等问题</div>'
+      +'<div style="margin-bottom:8px">本插件支持高度自主自定义，大部分数据模块皆可由 AI 二次编译，文件内部已写入 AI 支持文档，允许 AI 根据规则自定义编译您希望拥有/优化的功能</div>'
+      +'<div style="margin-bottom:14px;color:#ffb4b4">但请注意，作者不对 AI 二次编译之后的产物可用性负责</div>'
+      +'<div style="color:#a855f7;font-weight:700;letter-spacing:.5px;margin-bottom:14px">————ZERO—鹏冥月落</div>'
+      +'<div style="display:flex;gap:8px;justify-content:flex-end"><button id="hb-intro-ok" style="background:#12233f;color:#7fb2ff;border:1px solid #4c8dff;border-radius:8px;padding:7px 16px;font:13px inherit;cursor:pointer">开始使用</button></div>'
+      +'</div>';
+    (document.body||document.documentElement).appendChild(el);
+    var b=document.getElementById('hb-intro-ok');
+    if(b) b.onclick=function(){ try{ el.parentNode.removeChild(el); }catch(e){} try{ fetch(API+'/intro?done=1&v='+encodeURIComponent(ver),{method:'POST'}); }catch(e){} };
+  }catch(e){}
+}
+try{ setInterval(__hbIntro, 3000); }catch(e){}
 </script></body></html>
