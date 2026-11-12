@@ -1,13 +1,13 @@
 {
   "_readme": "dsh-heartbeat 的「出处凭据 + 自改标记」。你（AI 或人）如果改过这个插件，请在 modifyLog 里追加一条记录，格式：{\"by\":\"谁改的\",\"at\":\"时间\",\"what\":\"改了什么\",\"widgetVer\":改后的SELF_VER}。不要删除本文件、不要清空 modifyLog、不要改动 author 字段。原作者标记 by:鹏冥月落 也必须保留。",
   "author": "鹏冥月落",
-  "officialVersion": "1.5.0",
+  "officialVersion": "1.5.1",
   "modifyLog": [],
   "officialWidgetVer": 168,
   "_official": "这是官方版（非自改）：modifyLog 必须为空、officialWidgetVer 必须等于 widget.js 的 SELF_VER",
   "officialCredential": {
     "alg": "ES256",
-    "payload": "eyJwbHVnaW4iOiJkc2gtaGVhcnRiZWF0IiwiYXV0aG9yIjoi6bmP5Yal5pyI6JC9IiwidmVyc2lvbiI6IjEuNS4wIiwid2lkZ2V0VmVyIjoxNjgsInBhZ2VWZXIiOjQxLCJpc3N1ZWRBdCI6MTc5MjEzOTAyNDE2MX0",
-    "signature": "XvzIsZH0w_mVaqMtnilrkqY8EJShDjWi1VVVjCufm3Fp9eUfp97FSHgrPjJ7F9CttIzUMAICJTAqYHL4DRitYw"
+    "payload": "eyJwbHVnaW4iOiJkc2gtaGVhcnRiZWF0IiwiYXV0aG9yIjoi6bmP5Yal5pyI6JC9IiwidmVyc2lvbiI6IjEuNS4xIiwid2lkZ2V0VmVyIjoxNjgsInBhZ2VWZXIiOjQxLCJpc3N1ZWRBdCI6MTc5NDQ5NTU2MzU1OX0",
+    "signature": "WLEOedKGHNbSUfU4OmjMOlimMZhHPhyvCRUZFzv3n5MvootYPiElfW_AImMAzlksx8kj1Fx5sseE-m8n5Bdw1g"
   }
 }
